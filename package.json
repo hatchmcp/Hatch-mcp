@@ -1,0 +1,40 @@
+{
+  "name": "hatchmcp",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:runtime": "npm run dev --workspace=apps/runtime"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@supabase/supabase-js": "^2.105.4",
+    "axios": "^1.16.1",
+    "dotenv": "^17.4.2",
+    "fastify": "^5.8.5",
+    "lru-cache": "^11.3.6",
+    "pg": "^8.20.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.15.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.5.0",
+    "nodemon": "^3.1.14",
+    "postcss": "^8.5.14",
+    "tailwindcss": "^4.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.13"
+  }
+}

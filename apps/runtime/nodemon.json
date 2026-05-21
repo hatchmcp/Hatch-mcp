@@ -1,0 +1,6 @@
+{
+  "watch": ["src"],
+  "ext": "ts,json",
+  "ignore": ["dist"],
+  "exec": "node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts"
+}

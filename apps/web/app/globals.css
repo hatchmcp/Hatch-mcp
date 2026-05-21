@@ -1,0 +1,165 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Hatch design tokens — values lifted directly from the landing page so the
+   app and the marketing site stay visually identical.
+   ============================================================================ */
+
+:root {
+  /* Surfaces */
+  --bg: #0A0A0A;
+  --surface: #111111;
+  --surface-2: #161616;
+  --surface-3: #1C1C1C;
+
+  /* Borders */
+  --border-color: #222222;
+  --border-strong: #333333;
+
+  /* Text */
+  --text-primary: #F5F5F5;
+  --text-secondary: #888888;
+  --text-tertiary: #555555;
+  --text-quaternary: #333333;
+
+  /* Accent (rare — primary CTA, success, live deploy dot, brand mark) */
+  --accent: #00FF94;
+  --accent-deep: #00B36A;
+  --accent-bg-text: #002818;
+  --accent-dim: rgba(0, 255, 148, 0.10);
+  --accent-mid: rgba(0, 255, 148, 0.30);
+
+  /* Status */
+  --error: #FF4444;
+  --warning: #FFAA00;
+  --error-dim: rgba(255, 68, 68, 0.10);
+  --warning-dim: rgba(255, 170, 0, 0.10);
+
+  /* HTTP method chip colors */
+  --method-get: #14B8A6;
+  --method-post: #00FF94;
+  --method-put: #FFAA00;
+  --method-patch: #FFAA00;
+  --method-delete: #FF4444;
+
+  /* Radius (shadcn convention) */
+  --radius: 6px;
+}
+
+@theme inline {
+  /* Brand tokens -> Tailwind utilities */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-border: var(--border-color);
+  --color-border-strong: var(--border-strong);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-text-quaternary: var(--text-quaternary);
+
+  --color-accent: var(--accent);
+  --color-accent-deep: var(--accent-deep);
+  --color-accent-bg-text: var(--accent-bg-text);
+
+  --color-error: var(--error);
+  --color-warning: var(--warning);
+
+  --color-method-get: var(--method-get);
+  --color-method-post: var(--method-post);
+  --color-method-put: var(--method-put);
+  --color-method-patch: var(--method-patch);
+  --color-method-delete: var(--method-delete);
+
+  /* shadcn aliases — these names are what `npx shadcn add ...` writes against */
+  --color-background: var(--bg);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--surface-3);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--accent-bg-text);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--text-secondary);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: var(--text-primary);
+  --color-input: var(--border-color);
+  --color-ring: var(--accent);
+
+  /* Fonts (next/font sets the actual family via --font-sans / --font-mono vars
+     on <html>; we just re-expose them as Tailwind tokens here.) */
+  --font-sans: var(--font-sans), "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Radius scale (shadcn convention) */
+  --radius-sm: calc(var(--radius) - 3px);   /* 3 — buttons, small chips */
+  --radius-md: var(--radius);                /* 6 — cards, inputs */
+  --radius-lg: calc(var(--radius) + 4px);    /* 10 — modals, sheets */
+  --radius-xl: calc(var(--radius) + 8px);
+
+  /* Motion */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================================
+   Base layer — body, selection, scrollbar. Same details as the landing page.
+   ============================================================================ */
+
+* {
+  border-color: var(--border-color);
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans), "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  line-height: 1.5;
+  font-size: 0.875rem; /* ~15.75px effective */
+  -webkit-font-smoothing: antialiased;
+}
+
+.mono,
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono), "JetBrains Mono", ui-monospace, monospace;
+  font-feature-settings: "ss02", "ss03";
+}
+
+::selection {
+  background: var(--accent-dim);
+  color: var(--text-primary);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+
+/* Focus ring — used by shadcn components via --color-ring */
+:focus-visible {
+  outline: none;
+}

@@ -1,0 +1,40 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Environment files (secrets)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude Code local settings
+.claude/
+
+# Screenshots, recordings, ad-hoc media in project root
+*.mp4
+*.mov
+Screenshot*.png
+
+# Test coverage
+coverage/
