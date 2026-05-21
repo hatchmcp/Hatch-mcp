@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { previewSlug } from '@/lib/slug'
 import { ApiError } from '@/lib/api'
 import { useCreateProject, useStartIngest } from '@/hooks/use-projects'
+import { useJobRail } from '@/components/job-rail-context'
 import type { SourceType } from '@/types/api'
 
 type SourceOption = {
@@ -84,6 +85,7 @@ export default function NewProjectPage() {
 
   const createProject = useCreateProject()
   const startIngest = useStartIngest()
+  const jobRail = useJobRail()
   const submitting = createProject.isPending || startIngest.isPending
 
   const slugPreview = useMemo(() => previewSlug(state.name) || 'your-project', [state.name])
@@ -112,6 +114,7 @@ export default function NewProjectPage() {
       })
 
       const { job_id } = await startIngest.mutateAsync(project.id)
+      jobRail.start(job_id, { label: 'Ingesting source', kind: 'ingest' })
 
       router.replace(`/projects/${project.id}/endpoints?job=${job_id}`)
     } catch (err) {

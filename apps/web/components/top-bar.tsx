@@ -5,6 +5,7 @@ import { Search, Bell, LogOut, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { useMe } from '@/hooks/use-me'
 import { useAuth } from '@/hooks/use-auth'
 import { useSidebar } from '@/components/sidebar-context'
+import { useCommandPalette } from '@/components/command-palette-context'
 import { Avatar } from '@/components/avatar'
 import {
   DropdownMenu,
@@ -19,6 +20,7 @@ export function TopBar() {
   const { data } = useMe()
   const { signOut } = useAuth()
   const { collapsed, toggle } = useSidebar()
+  const { setOpen: setCommandOpen } = useCommandPalette()
 
   return (
     <header className="h-12 border-b border-border flex items-center px-4 gap-3 bg-bg sticky top-0 z-30">
@@ -48,9 +50,10 @@ export function TopBar() {
         </>
       )}
 
-      {/* Center: command palette trigger (cosmetic for now) */}
+      {/* Command palette trigger */}
       <button
         type="button"
+        onClick={() => setCommandOpen(true)}
         className="ml-auto inline-flex items-center gap-2 h-7 px-2.5 border border-border rounded-sm text-xs text-text-tertiary hover:border-border-strong hover:text-text-secondary transition-colors bg-surface"
       >
         <Search className="size-3" />

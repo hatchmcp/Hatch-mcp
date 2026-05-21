@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/empty-state'
 import { useProject } from '@/hooks/use-projects'
 import { useMcpServer, useRunTests } from '@/hooks/use-mcp-server'
 import { useJobStream } from '@/hooks/use-job-stream'
+import { useJobRail } from '@/components/job-rail-context'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
 import type { TestReport } from '@/types/api'
@@ -35,6 +36,7 @@ export default function TestsPage() {
 
   const { data: mcpServer, isLoading: mcpLoading } = useMcpServer(projectId)
   const runTests = useRunTests(projectId)
+  const jobRail = useJobRail()
 
   const jobState = useJobStream(jobId)
 
@@ -48,6 +50,7 @@ export default function TestsPage() {
   async function handleRun() {
     try {
       const { job_id } = await runTests.mutateAsync()
+      jobRail.start(job_id, { label: 'Running tests', kind: 'test' })
       router.replace(`/projects/${projectId}/tests?job=${job_id}`)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Could not start tests')

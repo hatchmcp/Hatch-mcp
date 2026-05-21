@@ -6,6 +6,11 @@ import { useAuth } from '@/hooks/use-auth'
 import { TopBar } from '@/components/top-bar'
 import { Sidebar } from '@/components/sidebar'
 import { SidebarProvider, useSidebar } from '@/components/sidebar-context'
+import { JobRailProvider, useJobRail } from '@/components/job-rail-context'
+import { JobRail } from '@/components/job-rail'
+import { CommandPaletteProvider } from '@/components/command-palette-context'
+import { CommandPalette } from '@/components/command-palette'
+import { cn } from '@/lib/utils'
 
 export default function AuthedLayout({
   children,
@@ -27,13 +32,19 @@ export default function AuthedLayout({
 
   return (
     <SidebarProvider>
-      <Shell>{children}</Shell>
+      <JobRailProvider>
+        <CommandPaletteProvider>
+          <Shell>{children}</Shell>
+        </CommandPaletteProvider>
+      </JobRailProvider>
     </SidebarProvider>
   )
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { toggle } = useSidebar()
+  const { activeJob, expanded: railExpanded } = useJobRail()
+  const railOpen = !!activeJob && railExpanded
 
   // Global ⌘\ / Ctrl+\ to toggle the sidebar
   useEffect(() => {
@@ -52,8 +63,17 @@ function Shell({ children }: { children: React.ReactNode }) {
       <TopBar />
       <div className="flex flex-1 min-h-0">
         <Sidebar />
-        <main className="flex-1 min-w-0 overflow-y-auto">{children}</main>
+        <main
+          className={cn(
+            'flex-1 min-w-0 overflow-y-auto transition-[padding] duration-200 ease-out',
+            railOpen && 'pr-[320px]'
+          )}
+        >
+          {children}
+        </main>
       </div>
+      <JobRail />
+      <CommandPalette />
     </div>
   )
 }

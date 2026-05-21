@@ -31,6 +31,7 @@ import { JobBanner } from '@/components/job-banner'
 import { useProject } from '@/hooks/use-projects'
 import { useMcpServer, useGenerate, mcpServerKey } from '@/hooks/use-mcp-server'
 import { useJobStream } from '@/hooks/use-job-stream'
+import { useJobRail } from '@/components/job-rail-context'
 import { timeAgo } from '@/lib/format'
 import { ApiError } from '@/lib/api'
 import type { AuthType } from '@/types/api'
@@ -57,6 +58,7 @@ export default function ToolsPage() {
 
   const { data, isLoading, isError, error } = useMcpServer(projectId)
   const generate = useGenerate(projectId)
+  const jobRail = useJobRail()
 
   const [search, setSearch] = useState('')
 
@@ -83,6 +85,7 @@ export default function ToolsPage() {
   async function handleGenerate(authType: AuthType) {
     try {
       const { job_id } = await generate.mutateAsync({ auth_type: authType })
+      jobRail.start(job_id, { label: 'Generating MCP tools', kind: 'generate' })
       router.replace(`/projects/${projectId}/tools?job=${job_id}`)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Generate failed')

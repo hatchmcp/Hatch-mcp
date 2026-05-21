@@ -31,6 +31,7 @@ import { useProject, useStartIngest } from '@/hooks/use-projects'
 import { useEndpoints, useUpdateEndpoints, endpointsKey } from '@/hooks/use-endpoints'
 import { useGenerate, mcpServerKey } from '@/hooks/use-mcp-server'
 import { useJobStream } from '@/hooks/use-job-stream'
+import { useJobRail } from '@/components/job-rail-context'
 import { useQueryClient } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
@@ -65,6 +66,7 @@ export default function EndpointsPage() {
   const updateEndpoints = useUpdateEndpoints(projectId)
   const startIngest = useStartIngest()
   const generate = useGenerate(projectId)
+  const jobRail = useJobRail()
 
   // Filter / search state (local — could move to URL later)
   const [search, setSearch] = useState('')
@@ -141,6 +143,7 @@ export default function EndpointsPage() {
   async function handleReingest() {
     try {
       const { job_id } = await startIngest.mutateAsync(projectId)
+      jobRail.start(job_id, { label: 'Re-ingesting source', kind: 'ingest' })
       router.replace(`/projects/${projectId}/endpoints?job=${job_id}`)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Re-ingest failed')
@@ -154,6 +157,7 @@ export default function EndpointsPage() {
     }
     try {
       const { job_id } = await generate.mutateAsync({ auth_type: authType })
+      jobRail.start(job_id, { label: 'Generating MCP tools', kind: 'generate' })
       router.replace(`/projects/${projectId}/endpoints?job=${job_id}`)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Generate failed')

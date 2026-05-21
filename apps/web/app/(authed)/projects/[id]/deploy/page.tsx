@@ -24,6 +24,7 @@ import { useProject } from '@/hooks/use-projects'
 import { useMcpServer, mcpServerKey } from '@/hooks/use-mcp-server'
 import { useDeployments, useDeploy, deploymentsKey } from '@/hooks/use-deployments'
 import { useJobStream } from '@/hooks/use-job-stream'
+import { useJobRail } from '@/components/job-rail-context'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
@@ -56,6 +57,7 @@ export default function DeployPage() {
   const activeDeployment = deployments.find((d) => d.status === 'active') ?? null
 
   const deploy = useDeploy(projectId)
+  const jobRail = useJobRail()
 
   const config = mcpServer?.version.config
   const requiredSecrets = config?.auth_config.user_must_provide ?? []
@@ -102,6 +104,10 @@ export default function DeployPage() {
 
     try {
       const { job_id } = await deploy.mutateAsync(payload)
+      jobRail.start(job_id, {
+        label: activeDeployment ? `Redeploying v${nextVersion}` : `Deploying v${nextVersion}`,
+        kind: 'deploy',
+      })
       router.replace(`/projects/${projectId}/deploy?job=${job_id}`)
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Deploy failed')
