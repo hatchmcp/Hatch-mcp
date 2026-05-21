@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowRight,
@@ -78,10 +78,32 @@ const initialState: WizardState = {
   description: '',
 }
 
+const VALID_SOURCES: SourceType[] = ['github', 'openapi', 'postman', 'docs', 'paste']
+
 export default function NewProjectPage() {
   const router = useRouter()
-  const [step, setStep] = useState<Step>(0)
-  const [state, setState] = useState<WizardState>(initialState)
+  const searchParams = useSearchParams()
+
+  // If a Template link routed us here with ?source=...&url=...&name=..., pre-fill
+  // and skip straight to step 1 (Config) since Source is already chosen.
+  const initialFromQuery = useMemo<WizardState>(() => {
+    const sourceParam = searchParams.get('source')
+    const source = (VALID_SOURCES as string[]).includes(sourceParam ?? '')
+      ? (sourceParam as SourceType)
+      : null
+    return {
+      ...initialState,
+      sourceType: source,
+      sourceUrl: searchParams.get('url') ?? '',
+      sourceRef: searchParams.get('ref') ?? '',
+      name: searchParams.get('name') ?? '',
+      baseApiUrl: searchParams.get('base') ?? '',
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const [step, setStep] = useState<Step>(initialFromQuery.sourceType && initialFromQuery.sourceUrl ? 1 : 0)
+  const [state, setState] = useState<WizardState>(initialFromQuery)
 
   const createProject = useCreateProject()
   const startIngest = useStartIngest()

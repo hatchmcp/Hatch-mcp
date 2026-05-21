@@ -10,6 +10,7 @@ import { JobRailProvider, useJobRail } from '@/components/job-rail-context'
 import { JobRail } from '@/components/job-rail'
 import { CommandPaletteProvider } from '@/components/command-palette-context'
 import { CommandPalette } from '@/components/command-palette'
+import { MobileBlock } from '@/components/mobile-block'
 import { cn } from '@/lib/utils'
 
 export default function AuthedLayout({
@@ -59,21 +60,29 @@ function Shell({ children }: { children: React.ReactNode }) {
   }, [toggle])
 
   return (
-    <div className="min-h-screen flex flex-col bg-bg">
-      <TopBar />
-      <div className="flex flex-1 min-h-0">
-        <Sidebar />
-        <main
-          className={cn(
-            'flex-1 min-w-0 overflow-y-auto transition-[padding] duration-200 ease-out',
-            railOpen && 'pr-[320px]'
-          )}
-        >
-          {children}
-        </main>
+    <>
+      {/* < lg (1024px): show "use a larger screen" message — dashboard is desktop-only */}
+      <div className="lg:hidden">
+        <MobileBlock />
       </div>
-      <JobRail />
-      <CommandPalette />
-    </div>
+
+      {/* >= lg: full shell */}
+      <div className="hidden lg:flex min-h-screen flex-col bg-bg">
+        <TopBar />
+        <div className="flex flex-1 min-h-0">
+          <Sidebar />
+          <main
+            className={cn(
+              'flex-1 min-w-0 overflow-y-auto transition-[padding] duration-200 ease-out',
+              railOpen && 'pr-[320px]'
+            )}
+          >
+            {children}
+          </main>
+        </div>
+        <JobRail />
+        <CommandPalette />
+      </div>
+    </>
   )
 }

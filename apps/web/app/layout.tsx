@@ -18,9 +18,31 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Hatch — Ship production MCP servers in minutes',
+  title: {
+    default: 'Hatch — Ship production MCP servers in minutes',
+    template: '%s · Hatch',
+  },
   description:
     'Paste a repo, an OpenAPI spec, or a Postman collection. Hatch extracts every endpoint, generates typed tools, runs the test loop, and deploys to a versioned subdomain.',
+  applicationName: 'Hatch',
+  authors: [{ name: 'Hatch Labs' }],
+  openGraph: {
+    title: 'Hatch — Ship production MCP servers in minutes',
+    description:
+      'Convert any API into a hosted MCP server. Generate. Test. Deploy.',
+    type: 'website',
+    siteName: 'Hatch',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Hatch — Ship production MCP servers in minutes',
+    description:
+      'Convert any API into a hosted MCP server. Generate. Test. Deploy.',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 }
 
 export const viewport: Viewport = {
