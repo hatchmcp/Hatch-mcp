@@ -56,7 +56,12 @@ export function useJobStream(
         const token = data.session?.access_token
         if (!token) return
 
-        const res = await fetch(`/api/v1/jobs/${jobId}/stream`, {
+        // Bypass the Next.js dev rewrite for SSE — the rewrite proxy buffers
+        // chunked responses, so events only flush when the connection closes.
+        // Hitting the API origin directly streams in real time. CORS is
+        // configured on the API for http://localhost:3000.
+        const apiBase = process.env.NEXT_PUBLIC_API_URL ?? ''
+        const res = await fetch(`${apiBase}/api/v1/jobs/${jobId}/stream`, {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: 'text/event-stream',
