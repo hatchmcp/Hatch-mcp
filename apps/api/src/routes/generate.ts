@@ -17,7 +17,7 @@ const GenerateSchema = z.object({
 })
 
 // POST /projects/:id/generate — kick off MCP config generation
-router.post('/', auth, async (req, res) => {
+router.post('/generate', auth, async (req, res) => {
   const project = await getProject(req.params.id, req.companyId)
   const { auth_type, base_api_url } = GenerateSchema.parse(req.body)
 
