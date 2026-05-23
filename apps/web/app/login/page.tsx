@@ -8,6 +8,7 @@ import { getSupabaseClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Logo } from '@/components/logo'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -58,9 +59,8 @@ export default function LoginPage() {
     <main className="min-h-screen flex items-center justify-center px-6 py-12 bg-bg">
       <div className="w-full max-w-[380px]">
         {/* Logo */}
-        <div className="flex items-center gap-2 mb-10 justify-center">
-          <span className="inline-block w-2 h-2 rounded-full bg-accent" />
-          <span className="font-semibold text-base tracking-tight">Hatch</span>
+        <div className="flex justify-center mb-10">
+          <Logo size={32} />
         </div>
 
         {/* Card */}

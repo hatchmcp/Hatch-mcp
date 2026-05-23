@@ -35,6 +35,9 @@ export function useGenerate(projectId: string) {
       api.post<{ job_id: string }>(`/projects/${projectId}/generate`, input),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: mcpServerKey(projectId) })
+      // The project's base_api_url may have changed if the user supplied a
+      // new one in this generate request — refresh the cached project too.
+      qc.invalidateQueries({ queryKey: ['project', projectId] })
     },
   })
 }

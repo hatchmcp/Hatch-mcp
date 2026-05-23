@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useSidebar } from '@/components/sidebar-context'
 import { useCommandPalette } from '@/components/command-palette-context'
 import { Avatar } from '@/components/avatar'
+import { Logo } from '@/components/logo'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -36,9 +37,8 @@ export function TopBar() {
       </button>
 
       {/* Logo + workspace */}
-      <Link href="/" className="flex items-center gap-2 group">
-        <span className="inline-block w-2 h-2 rounded-full bg-accent" />
-        <span className="font-semibold text-sm tracking-tight">Hatch</span>
+      <Link href="/" className="flex items-center group">
+        <Logo size={22} />
       </Link>
 
       {data?.user && (

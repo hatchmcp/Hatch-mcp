@@ -33,6 +33,16 @@ router.post('/generate', auth, async (req, res) => {
   const baseUrl = base_api_url ?? project.base_api_url
   if (!baseUrl) throw new HttpError(422, 'base_api_url is required')
 
+  // If the request supplied a base_api_url and it differs from what's on the
+  // project, persist it so the user doesn't have to retype it on every
+  // regenerate. Important for github/docs sources where ingest can't detect it.
+  if (base_api_url && base_api_url !== project.base_api_url) {
+    await execute(
+      `UPDATE projects SET base_api_url = $1, updated_at = now() WHERE id = $2`,
+      [base_api_url, project.id]
+    )
+  }
+
   const [job] = await query<{ id: string }>(
     `INSERT INTO jobs (project_id, type, status) VALUES ($1, 'generate', 'queued') RETURNING id`,
     [project.id]

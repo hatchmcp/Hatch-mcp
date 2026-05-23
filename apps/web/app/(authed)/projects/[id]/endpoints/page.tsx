@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Sparkles,
   Filter,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -72,6 +73,15 @@ export default function EndpointsPage() {
   const [search, setSearch] = useState('')
   const [methodFilter, setMethodFilter] = useState<Set<HttpMethod>>(new Set())
   const [selectedOnly, setSelectedOnly] = useState(false)
+
+  // Inline base URL editor — shown when missing or relative, since github/docs
+  // ingest can't detect it and openapi sometimes returns a relative path.
+  const projectBaseUrl = project?.base_api_url ?? ''
+  const baseUrlMissing =
+    !projectBaseUrl || !/^https?:\/\//i.test(projectBaseUrl)
+  const [baseUrlInput, setBaseUrlInput] = useState(projectBaseUrl)
+  // Keep the input in sync if the project record updates (e.g. after a generate)
+  useEffect(() => setBaseUrlInput(projectBaseUrl), [projectBaseUrl])
 
   const filtered = useMemo(() => {
     return endpoints.filter((e) => {
@@ -155,8 +165,23 @@ export default function EndpointsPage() {
       toast.error('Select at least one endpoint first')
       return
     }
+
+    const supplied = baseUrlInput.trim()
+    if (!supplied && baseUrlMissing) {
+      toast.error('Set a base API URL above first — it tells the runtime where to call.')
+      return
+    }
+    if (supplied && !/^https?:\/\//i.test(supplied)) {
+      toast.error('Base URL must start with http:// or https://')
+      return
+    }
+
     try {
-      const { job_id } = await generate.mutateAsync({ auth_type: authType })
+      const { job_id } = await generate.mutateAsync({
+        auth_type: authType,
+        // Only pass an override when it differs from what's on the project
+        base_api_url: supplied !== projectBaseUrl ? supplied : undefined,
+      })
       jobRail.start(job_id, { label: 'Generating MCP tools', kind: 'generate' })
       router.replace(`/projects/${projectId}/endpoints?job=${job_id}`)
     } catch (err) {
@@ -240,6 +265,37 @@ export default function EndpointsPage() {
           }
           onDismiss={clearJobFromUrl}
         />
+      )}
+
+      {/* Base URL prompt — required by /generate, can't be auto-detected for
+          github/docs sources, and openapi specs sometimes only declare a
+          relative server. Show inline so the user fixes it without leaving
+          the page. */}
+      {endpoints.length > 0 && baseUrlMissing && (
+        <div className="border border-warning/30 bg-warning/5 rounded-md px-4 py-3 mb-4 flex items-start gap-3">
+          <AlertTriangle className="size-4 text-warning shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-text-primary mb-0.5">
+              Set the base API URL
+            </p>
+            <p className="text-xs text-text-secondary mb-3 leading-relaxed">
+              The runtime needs a fully-qualified host to call when Claude invokes a
+              tool. We couldn&apos;t auto-detect one from your source.
+            </p>
+            <div className="flex items-center gap-2">
+              <Input
+                type="url"
+                placeholder="https://api.example.com"
+                value={baseUrlInput}
+                onChange={(e) => setBaseUrlInput(e.target.value)}
+                className="font-mono text-xs h-9 max-w-[440px]"
+              />
+              <span className="text-[11px] text-text-tertiary font-mono">
+                saved on Generate
+              </span>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Filters row */}
