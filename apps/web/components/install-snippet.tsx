@@ -16,24 +16,34 @@ export function InstallSnippet({
   serverName,
   subdomain,
   domain,
+  runtimeKey,
+  runtimeKeyHint,
 }: {
   serverName: string
   subdomain: string
   domain: string
+  // If present, the real key is baked into the snippet (fresh deploy / rotate).
+  runtimeKey?: string
+  // Otherwise we show a masked placeholder using just the last 4 chars.
+  runtimeKeyHint?: string | null
 }) {
   const [tab, setTab] = useState<ClientTab>('claude')
   const [copied, setCopied] = useState(false)
 
   const url = `https://${subdomain}.${domain}/sse`
   const liveUrl = `https://${subdomain}.${domain}`
+  const keyValue = runtimeKey ?? `hk_••••••${runtimeKeyHint ?? '????'}`
 
   const config = useMemo(() => {
     return {
       mcpServers: {
-        [serverName]: { url },
+        [serverName]: {
+          url,
+          headers: { Authorization: `Bearer ${keyValue}` },
+        },
       },
     }
-  }, [serverName, url])
+  }, [serverName, url, keyValue])
 
   const snippet = useMemo(() => {
     if (tab === 'json') {

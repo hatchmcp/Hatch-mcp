@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import { createHash, timingSafeEqual } from 'crypto'
 import { runtimeConfig } from './config.js'
 import { registerSseTransport } from './mcp/transport-sse.js'
 import { registerHttpTransport } from './mcp/transport-http.js'
@@ -7,6 +8,20 @@ import { loadConfig } from './routing/config-loader.js'
 import { extractSubdomain } from './routing/subdomain.js'
 import { logger } from './lib/logger.js'
 import { pool } from './routing/config-loader.js'
+
+// Paths that don't require the tenant's runtime key — health probes and public docs
+const PUBLIC_PATHS = new Set(['/health', '/health/'])
+function isPublicPath(url: string): boolean {
+  // Strip query string
+  const path = url.split('?')[0]
+  if (PUBLIC_PATHS.has(path)) return true
+  if (path === '/docs' || path.startsWith('/docs/')) return true
+  return false
+}
+
+function sha256Hex(s: string): string {
+  return createHash('sha256').update(s).digest('hex')
+}
 
 export function createServer() {
   const app = Fastify({
@@ -17,6 +32,49 @@ export function createServer() {
   app.register(cors, {
     origin: runtimeConfig.CORS_ORIGINS === '*' ? true : runtimeConfig.CORS_ORIGINS.split(','),
     methods: ['GET', 'POST', 'OPTIONS'],
+  })
+
+  // Tenant auth: every MCP route requires `Authorization: Bearer <runtime-key>`.
+  // Fail-closed — a deployed MCP server with no key set returns 503 until the
+  // owner rotates one from the dashboard.
+  app.addHook('preHandler', async (req, reply) => {
+    if (isPublicPath(req.url)) return
+
+    const subdomain = extractSubdomain(req.headers.host)
+    if (!subdomain) return // let the route return 400 with its own copy
+
+    const entry = await loadConfig(subdomain).catch(() => null)
+    if (!entry) return // no deployment yet — route will 404; cheaper than failing here
+
+    if (!entry.runtimeKeyHash) {
+      reply.status(503).send({
+        error:
+          'Runtime auth key not configured. Open the project in the Hatch dashboard and rotate the runtime key.',
+      })
+      return reply
+    }
+
+    const header = req.headers.authorization
+    if (!header || !header.startsWith('Bearer ')) {
+      reply
+        .status(401)
+        .header('WWW-Authenticate', 'Bearer realm="hatch"')
+        .send({ error: 'Missing Authorization: Bearer <hatch_runtime_key>' })
+      return reply
+    }
+
+    const providedHash = sha256Hex(header.slice(7).trim())
+    const a = Buffer.from(providedHash, 'hex')
+    const b = Buffer.from(entry.runtimeKeyHash, 'hex')
+
+    if (a.length !== b.length || !timingSafeEqual(a, b)) {
+      reply
+        .status(401)
+        .header('WWW-Authenticate', 'Bearer realm="hatch", error="invalid_token"')
+        .send({ error: 'Invalid runtime key' })
+      return reply
+    }
+    // Authenticated — fall through to the route handler
   })
 
   // Register MCP transports

@@ -34,3 +34,17 @@ export function useRollback(projectId: string) {
     },
   })
 }
+
+export function useRotateRuntimeKey(projectId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () =>
+      api.post<import('@/types/api').RuntimeKeyRotateResponse>(
+        `/projects/${projectId}/runtime-key`
+      ),
+    onSuccess: () => {
+      // Hint changes on rotate, so refresh the mcp-server cache
+      qc.invalidateQueries({ queryKey: mcpServerKey(projectId) })
+    },
+  })
+}

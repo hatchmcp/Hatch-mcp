@@ -1,6 +1,7 @@
 import { pool, queryOne } from '../../lib/db.js'
 import { burstConfigCache } from './cache-bust.js'
 import { logger } from '../../lib/logger.js'
+import { generateRuntimeKey, hashRuntimeKey, hintFromKey } from '../../lib/runtime-key.js'
 import type { McpConfig } from '@hatchmcp/shared'
 
 export interface DeployResult {
@@ -8,6 +9,11 @@ export interface DeployResult {
   versionId: string
   versionNumber: number
   subdomain: string
+  // Plaintext runtime key — populated ONLY when this deploy minted a new key
+  // (i.e. the very first deploy for this MCP server). Subsequent deploys leave
+  // this null; the existing key keeps working and must be rotated explicitly.
+  runtime_key?: string
+  runtime_key_hint?: string
 }
 
 export async function deployConfig(opts: {
@@ -59,25 +65,57 @@ export async function deployConfig(opts: {
       [mcpServerId, deployment.id]
     )
 
-    await client.query(
-      `UPDATE mcp_servers
-       SET current_version_id = $1, status = 'deployed', updated_at = now()
-       WHERE id = $2`,
-      [version.id, mcpServerId]
+    // Mint a runtime key on the very first deploy. Subsequent deploys leave
+    // the existing key alone so already-connected MCP clients don't break.
+    const existingKey = await client.query<{ runtime_key_hash: string | null }>(
+      `SELECT runtime_key_hash FROM mcp_servers WHERE id = $1`,
+      [mcpServerId]
     )
+
+    let mintedKey: string | undefined
+    let mintedHint: string | undefined
+    if (!existingKey.rows[0]?.runtime_key_hash) {
+      mintedKey = generateRuntimeKey()
+      mintedHint = hintFromKey(mintedKey)
+
+      await client.query(
+        `UPDATE mcp_servers
+         SET current_version_id = $1,
+             status = 'deployed',
+             runtime_key_hash = $2,
+             runtime_key_hint = $3,
+             runtime_key_rotated_at = now(),
+             updated_at = now()
+         WHERE id = $4`,
+        [version.id, hashRuntimeKey(mintedKey), mintedHint, mcpServerId]
+      )
+    } else {
+      await client.query(
+        `UPDATE mcp_servers
+         SET current_version_id = $1, status = 'deployed', updated_at = now()
+         WHERE id = $2`,
+        [version.id, mcpServerId]
+      )
+    }
 
     await client.query('COMMIT')
 
     // Invalidate runtime cache after successful DB commit
     await burstConfigCache(subdomain)
 
-    log.info('Deploy succeeded', { deploymentId: deployment.id, versionNumber })
+    log.info('Deploy succeeded', {
+      deploymentId: deployment.id,
+      versionNumber,
+      newKeyMinted: !!mintedKey,
+    })
 
     return {
       deploymentId: deployment.id,
       versionId: version.id,
       versionNumber,
       subdomain,
+      runtime_key: mintedKey,
+      runtime_key_hint: mintedHint,
     }
   } catch (err) {
     await client.query('ROLLBACK')

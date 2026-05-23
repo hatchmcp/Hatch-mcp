@@ -2,14 +2,16 @@
 
 import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Trash2, AlertTriangle, Loader2 } from 'lucide-react'
+import { Trash2, AlertTriangle, Loader2, KeyRound, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/page-header'
+import { KeyRevealCard } from '@/components/key-reveal-card'
 import { useProject, useDeleteProject } from '@/hooks/use-projects'
 import { useMcpServer } from '@/hooks/use-mcp-server'
+import { useRotateRuntimeKey } from '@/hooks/use-deployments'
 import { timeAgo } from '@/lib/format'
 import { ApiError } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -83,6 +85,14 @@ export default function SettingsPage() {
               value={`${timeAgo(project.updated_at)} · ${new Date(project.updated_at).toLocaleDateString()}`}
             />
           </Card>
+
+          {/* Runtime key — tenant auth for the MCP server */}
+          <RuntimeKeySection
+            projectId={projectId}
+            hint={mcpServer?.mcp_server.runtime_key_hint ?? null}
+            rotatedAt={mcpServer?.mcp_server.runtime_key_rotated_at ?? null}
+            deployed={!!mcpServer}
+          />
 
           {/* Webhooks placeholder */}
           <Card label="Webhooks" hint="Auto-redeploy on GitHub push.">
@@ -229,6 +239,127 @@ function DangerZone({ project }: { project: { id: string; name: string } }) {
             )}
           </Button>
         </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─────────────────────────── Runtime key ─────────────────────────── */
+
+function RuntimeKeySection({
+  projectId,
+  hint,
+  rotatedAt,
+  deployed,
+}: {
+  projectId: string
+  hint: string | null
+  rotatedAt: string | null
+  deployed: boolean
+}) {
+  const rotate = useRotateRuntimeKey(projectId)
+  const [revealed, setRevealed] = useState<string | null>(null)
+
+  function confirmRotate() {
+    toast(`Rotate the runtime key?`, {
+      description:
+        'Any MCP client using the current key will get 401 within ~60 s. You\'ll need to update each client config with the new key.',
+      action: {
+        label: 'Rotate',
+        onClick: async () => {
+          try {
+            const res = await rotate.mutateAsync()
+            setRevealed(res.runtime_key)
+            toast.success('Runtime key rotated')
+          } catch (err) {
+            toast.error(err instanceof ApiError ? err.message : 'Rotate failed')
+          }
+        },
+      },
+      duration: 8000,
+    })
+  }
+
+  return (
+    <section className="border border-border rounded-md bg-surface overflow-hidden">
+      <header className="px-5 py-3 border-b border-border bg-surface-2 flex items-center justify-between gap-4">
+        <span className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          <KeyRound className="size-3" />
+          Runtime auth key
+        </span>
+        <span className="text-[11px] text-text-tertiary">
+          Required on every MCP request — Authorization: Bearer …
+        </span>
+      </header>
+
+      <div className="px-5 py-4 space-y-4">
+        <p className="text-xs text-text-secondary leading-relaxed">
+          Hatch authenticates every call to{' '}
+          <span className="font-mono text-text-secondary">{`{subdomain}.mcp.hatch.dev`}</span>{' '}
+          with a per-project bearer key. Only the SHA-256 hash is stored — the plaintext
+          appears exactly once, on rotate or initial deploy. The install snippet on the
+          Deploy page bakes the active key into the Claude/Cursor config.
+        </p>
+
+        {!deployed && (
+          <p className="text-xs text-text-tertiary font-mono">
+            The key is minted on first deploy. Generate the MCP config and deploy to get
+            one.
+          </p>
+        )}
+
+        {deployed && hint && (
+          <div className="flex items-center gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 mb-0.5">
+                <span className="font-mono text-sm text-text-primary">hk_••••••{hint}</span>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+                  active
+                </span>
+              </div>
+              {rotatedAt && (
+                <p className="text-[11px] font-mono text-text-tertiary">
+                  last rotated {timeAgo(rotatedAt)}
+                </p>
+              )}
+            </div>
+
+            <Button
+              variant="secondary"
+              size="md"
+              onClick={confirmRotate}
+              disabled={rotate.isPending}
+            >
+              <RefreshCw className={cn('size-3.5', rotate.isPending && 'animate-spin')} />
+              Rotate
+            </Button>
+          </div>
+        )}
+
+        {deployed && !hint && (
+          <div className="flex items-center justify-between gap-3 border border-warning/20 bg-warning/5 rounded-sm px-3 py-2.5">
+            <p className="text-xs text-warning">
+              No key set — the runtime is rejecting all requests with 503. Click to mint one.
+            </p>
+            <Button
+              size="sm"
+              onClick={confirmRotate}
+              disabled={rotate.isPending}
+            >
+              <KeyRound className="size-3" />
+              Mint
+            </Button>
+          </div>
+        )}
+
+        {revealed && (
+          <KeyRevealCard
+            title="New runtime key — save it now"
+            description="Update your MCP client config with this value. The old key stops working within ~60 s."
+            plaintext={revealed}
+            onDismiss={() => setRevealed(null)}
+          />
+        )}
       </div>
     </section>
   )

@@ -6,8 +6,10 @@ import { getMcpServer, listDeployments, getActiveConfig } from '../services/depl
 import { query, execute } from '../lib/db.js'
 import { runJob } from '../jobs/runner.js'
 import { deployConfig, rollbackDeployment } from '../jobs/deploy/deployer.js'
+import { burstConfigCache } from '../jobs/deploy/cache-bust.js'
 import { runTestPipeline } from '../jobs/test/runner.js'
 import { encrypt } from '../lib/crypto.js'
+import { generateRuntimeKey, hashRuntimeKey, hintFromKey } from '../lib/runtime-key.js'
 import { McpConfigSchema } from '@hatchmcp/shared'
 import { HttpError } from '../middleware/error.js'
 
@@ -93,6 +95,37 @@ router.get('/deployments', auth, async (req, res) => {
   const mcpServer = await getMcpServer(project.id)
   const deployments = await listDeployments(mcpServer.id)
   res.json({ deployments })
+})
+
+// POST /projects/:id/runtime-key — rotate the per-MCP auth key.
+// Returns the new plaintext key exactly once; only the hash is persisted.
+router.post('/runtime-key', auth, async (req, res) => {
+  const project = await getProject(req.params.id, req.companyId)
+  const mcpServer = await getMcpServer(project.id)
+
+  const plaintext = generateRuntimeKey()
+  const hint = hintFromKey(plaintext)
+  const now = new Date().toISOString()
+
+  await execute(
+    `UPDATE mcp_servers
+     SET runtime_key_hash = $1,
+         runtime_key_hint = $2,
+         runtime_key_rotated_at = now(),
+         updated_at = now()
+     WHERE id = $3`,
+    [hashRuntimeKey(plaintext), hint, mcpServer.id]
+  )
+
+  // Bust the runtime's config cache so the previous key stops working ASAP
+  // (otherwise the LRU's 60s safety-net TTL would let the old key linger).
+  await burstConfigCache(mcpServer.subdomain)
+
+  res.json({
+    runtime_key: plaintext,
+    runtime_key_hint: hint,
+    rotated_at: now,
+  })
 })
 
 // POST /projects/:id/rollback

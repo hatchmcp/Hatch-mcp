@@ -20,6 +20,7 @@ import { JobBanner } from '@/components/job-banner'
 import { EmptyState } from '@/components/empty-state'
 import { SecretInput } from '@/components/secret-input'
 import { InstallSnippet } from '@/components/install-snippet'
+import { KeyRevealCard } from '@/components/key-reveal-card'
 import { useProject } from '@/hooks/use-projects'
 import { useMcpServer, mcpServerKey } from '@/hooks/use-mcp-server'
 import { useDeployments, useDeploy, deploymentsKey } from '@/hooks/use-deployments'
@@ -28,6 +29,7 @@ import { useJobRail } from '@/components/job-rail-context'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
+import type { DeployJobResult } from '@/types/api'
 
 const MCP_DOMAIN = process.env.NEXT_PUBLIC_MCP_DOMAIN ?? 'mcp.hatch.dev'
 
@@ -64,6 +66,11 @@ export default function DeployPage() {
 
   const [secrets, setSecrets] = useState<Record<string, string>>({})
 
+  // One-time runtime-key plaintext (only set after the deploy job's `done`
+  // event includes one — i.e. the very first deploy minted a key). Stays in
+  // local state until the user dismisses it; never goes to sessionStorage.
+  const [revealedKey, setRevealedKey] = useState<string | null>(null)
+
   // Reset secrets when the required-keys list changes
   useEffect(() => {
     setSecrets((prev) => {
@@ -74,7 +81,7 @@ export default function DeployPage() {
   }, [requiredSecrets.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const jobState = useJobStream(jobId, {
-    onDone: () => {
+    onDone: (result) => {
       qc.invalidateQueries({ queryKey: deploymentsKey(projectId) })
       qc.invalidateQueries({ queryKey: mcpServerKey(projectId) })
       // Wipe entered secrets after a successful deploy — they're sensitive
@@ -83,6 +90,10 @@ export default function DeployPage() {
         for (const k of Object.keys(prev)) blank[k] = ''
         return blank
       })
+
+      // First deploy mints the runtime auth key. Surface it once.
+      const deployResult = result as DeployJobResult | undefined
+      if (deployResult?.runtime_key) setRevealedKey(deployResult.runtime_key)
     },
   })
 
@@ -178,6 +189,18 @@ export default function DeployPage() {
         />
       )}
 
+      {/* Reveal-once card for the newly-minted runtime key (first deploy only) */}
+      {revealedKey && (
+        <div className="mb-5">
+          <KeyRevealCard
+            title="New runtime key — save it now"
+            description="Paste this into your MCP client config. Hatch only stores its hash — you cannot retrieve it later. To get a new one, rotate from Project Settings."
+            plaintext={revealedKey}
+            onDismiss={() => setRevealedKey(null)}
+          />
+        </div>
+      )}
+
       {/* Active install snippet (when there's a live deployment and we're not mid-deploy) */}
       {mcpServer && activeDeployment && !running && (
         <div className="mb-6">
@@ -185,6 +208,8 @@ export default function DeployPage() {
             serverName={config!.server_name}
             subdomain={mcpServer.mcp_server.subdomain}
             domain={MCP_DOMAIN}
+            runtimeKey={revealedKey ?? undefined}
+            runtimeKeyHint={mcpServer.mcp_server.runtime_key_hint}
           />
         </div>
       )}

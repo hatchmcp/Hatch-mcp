@@ -205,6 +205,28 @@ export interface McpServer {
   status: ProjectStatus
   created_at: string
   updated_at: string
+  // Only the hint (last 4 chars) is ever returned by the API; the plaintext
+  // key is only surfaced inside the deploy job result or the rotate response.
+  runtime_key_hint: string | null
+  runtime_key_rotated_at: string | null
+}
+
+export interface RuntimeKeyRotateResponse {
+  runtime_key: string
+  runtime_key_hint: string
+  rotated_at: string
+}
+
+export interface DeployJobResult {
+  deploymentId: string
+  versionId: string
+  versionNumber: number
+  subdomain: string
+  // Populated only on the FIRST deploy for an MCP server — never on subsequent
+  // deploys. After this single moment the plaintext is gone forever; rotate
+  // for a new one.
+  runtime_key?: string
+  runtime_key_hint?: string
 }
 
 export interface McpServerResponse {

@@ -14,8 +14,14 @@ export const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 })
 
+export interface ConfigEntry {
+  config: McpConfig
+  secrets: Record<string, string>
+  runtimeKeyHash: string | null
+}
+
 // LRU cache keyed by subdomain — ~50 KB per config, 1000 tenants ≈ 50 MB
-const configCache = new LRUCache<string, { config: McpConfig; secrets: Record<string, string> }>({
+const configCache = new LRUCache<string, ConfigEntry>({
   max: 1000,
   ttl: 60_000, // 1-minute safety-net TTL — PG NOTIFY handles invalidation proactively
 })
@@ -51,14 +57,18 @@ export async function stopConfigListener(): Promise<void> {
 }
 
 // Load config for a tenant — returns null if no active deployment exists
-export async function loadConfig(
-  subdomain: string
-): Promise<{ config: McpConfig; secrets: Record<string, string> } | null> {
+export async function loadConfig(subdomain: string): Promise<ConfigEntry | null> {
   const cached = configCache.get(subdomain)
   if (cached) return cached
 
-  const result = await pool.query<{ config: McpConfig; server_id: string }>(
-    `SELECT v.config, s.id AS server_id
+  const result = await pool.query<{
+    config: McpConfig
+    server_id: string
+    runtime_key_hash: string | null
+  }>(
+    `SELECT v.config,
+            s.id AS server_id,
+            s.runtime_key_hash
      FROM mcp_servers s
      JOIN mcp_server_versions v ON v.id = s.current_version_id
      JOIN deployments d ON d.mcp_server_id = s.id AND d.status = 'active'
@@ -69,7 +79,7 @@ export async function loadConfig(
 
   if (result.rows.length === 0) return null
 
-  const { config, server_id } = result.rows[0]
+  const { config, server_id, runtime_key_hash } = result.rows[0]
 
   // Load and decrypt all secrets for this server
   const secretRows = await pool.query<{ key: string; ciphertext: string; nonce: string }>(
@@ -86,7 +96,7 @@ export async function loadConfig(
     }
   }
 
-  const entry = { config, secrets }
+  const entry: ConfigEntry = { config, secrets, runtimeKeyHash: runtime_key_hash }
   configCache.set(subdomain, entry)
   return entry
 }
