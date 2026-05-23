@@ -19,12 +19,26 @@ export async function parseOpenApi(urlOrPath: string): Promise<{
   const endpoints: ExtractedEndpoint[] = []
 
   if (isV3(api)) {
-    return parseV3(api)
+    return parseV3(api, urlOrPath)
   } else if (isV2(api)) {
-    return parseV2(api)
+    return parseV2(api, urlOrPath)
   }
 
   throw new PermanentError('Unsupported OpenAPI version — expected 2.x or 3.x')
+}
+
+// Resolve a server URL that may be relative (e.g. "/api/v3") against the URL
+// the spec was fetched from. Petstore3, GitHub's spec, and many others
+// declare relative servers so we have to do this work — otherwise the runtime
+// gets a useless path with no host and every tool call 404s.
+function resolveBase(serverUrl: string | null, sourceUrl: string): string | null {
+  if (!serverUrl) return null
+  if (/^https?:\/\//i.test(serverUrl)) return serverUrl
+  try {
+    return new URL(serverUrl, sourceUrl).toString().replace(/\/$/, '')
+  } catch {
+    return serverUrl
+  }
 }
 
 function isV3(api: OpenAPI.Document): api is OpenAPIV3.Document {
@@ -35,9 +49,9 @@ function isV2(api: OpenAPI.Document): api is OpenAPIV2.Document {
   return (api as OpenAPIV2.Document).swagger?.startsWith('2') ?? false
 }
 
-function parseV3(api: OpenAPIV3.Document): { endpoints: ExtractedEndpoint[]; baseUrl: string | null; authMethods: string[] } {
+function parseV3(api: OpenAPIV3.Document, sourceUrl: string): { endpoints: ExtractedEndpoint[]; baseUrl: string | null; authMethods: string[] } {
   const endpoints: ExtractedEndpoint[] = []
-  const baseUrl = api.servers?.[0]?.url ?? null
+  const baseUrl = resolveBase(api.servers?.[0]?.url ?? null, sourceUrl)
   const authMethods = detectAuthMethodsV3(api)
 
   const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const
@@ -68,10 +82,14 @@ function parseV3(api: OpenAPIV3.Document): { endpoints: ExtractedEndpoint[]; bas
   return { endpoints, baseUrl, authMethods }
 }
 
-function parseV2(api: OpenAPIV2.Document): { endpoints: ExtractedEndpoint[]; baseUrl: string | null; authMethods: string[] } {
+function parseV2(api: OpenAPIV2.Document, sourceUrl: string): { endpoints: ExtractedEndpoint[]; baseUrl: string | null; authMethods: string[] } {
   const endpoints: ExtractedEndpoint[] = []
   const scheme = api.schemes?.[0] ?? 'https'
-  const baseUrl = api.host ? `${scheme}://${api.host}${api.basePath ?? ''}` : null
+  // If host is missing, fall back to deriving from the spec URL (e.g. swagger v2
+  // specs hosted next to the API root).
+  const baseUrl = api.host
+    ? `${scheme}://${api.host}${api.basePath ?? ''}`
+    : resolveBase(api.basePath ?? null, sourceUrl)
   const authMethods: string[] = []
 
   const METHODS = ['get', 'post', 'put', 'patch', 'delete', 'head', 'options'] as const
