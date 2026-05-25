@@ -76,32 +76,48 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
   }> = []
 
   for (const [path, content] of Object.entries(files)) {
-    const blob = await octokit.git.createBlob({
-      owner,
-      repo,
-      content: Buffer.from(content, 'utf8').toString('base64'),
-      encoding: 'base64',
-    })
-    tree.push({ path, mode: '100644', type: 'blob', sha: blob.data.sha })
+    try {
+      const blob = await octokit.git.createBlob({
+        owner,
+        repo,
+        content: Buffer.from(content, 'utf8').toString('base64'),
+        encoding: 'base64',
+      })
+      tree.push({ path, mode: '100644', type: 'blob', sha: blob.data.sha })
+    } catch (err) {
+      throw asPermanent(err, owner, repo, `creating blob for ${path}`)
+    }
   }
 
   // 3. Create a tree off the parent (so existing repo files survive — we
   //    only override the paths we generated)
-  const treeRes = await octokit.git.createTree({
-    owner,
-    repo,
-    tree,
-    ...(parentSha ? { base_tree: parentSha } : {}),
-  })
+  let treeSha: string
+  try {
+    const treeRes = await octokit.git.createTree({
+      owner,
+      repo,
+      tree,
+      ...(parentSha ? { base_tree: parentSha } : {}),
+    })
+    treeSha = treeRes.data.sha
+  } catch (err) {
+    throw asPermanent(err, owner, repo, 'creating tree')
+  }
 
   // 4. Create the commit
-  const commitRes = await octokit.git.createCommit({
-    owner,
-    repo,
-    message: commitMessage,
-    tree: treeRes.data.sha,
-    parents: parentSha ? [parentSha] : [],
-  })
+  let commitSha: string
+  try {
+    const commitRes = await octokit.git.createCommit({
+      owner,
+      repo,
+      message: commitMessage,
+      tree: treeSha,
+      parents: parentSha ? [parentSha] : [],
+    })
+    commitSha = commitRes.data.sha
+  } catch (err) {
+    throw asPermanent(err, owner, repo, 'creating commit')
+  }
 
   // 5. Update or create the branch ref to point at the new commit
   try {
@@ -109,20 +125,25 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
       owner,
       repo,
       ref: `heads/${branch}`,
-      sha: commitRes.data.sha,
+      sha: commitSha,
       force: false,
     })
   } catch (err: unknown) {
-    if ((err as { status?: number }).status === 422) {
+    const status = (err as { status?: number }).status
+    if (status === 404 || status === 422) {
       // Ref doesn't exist yet — create it
-      await octokit.git.createRef({
-        owner,
-        repo,
-        ref: `refs/heads/${branch}`,
-        sha: commitRes.data.sha,
-      })
+      try {
+        await octokit.git.createRef({
+          owner,
+          repo,
+          ref: `refs/heads/${branch}`,
+          sha: commitSha,
+        })
+      } catch (err2) {
+        throw asPermanent(err2, owner, repo, `creating branch ${branch}`)
+      }
     } else {
-      throw asPermanent(err, owner, repo)
+      throw asPermanent(err, owner, repo, `updating branch ${branch}`)
     }
   }
 
@@ -130,8 +151,8 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
     owner,
     repo,
     branch,
-    commitSha: commitRes.data.sha,
-    commitUrl: `https://github.com/${owner}/${repo}/commit/${commitRes.data.sha}`,
+    commitSha,
+    commitUrl: `https://github.com/${owner}/${repo}/commit/${commitSha}`,
     treeUrl: `https://github.com/${owner}/${repo}/tree/${branch}`,
   }
 }
@@ -148,12 +169,23 @@ function parseRepo(input: string): { owner: string; repo: string } {
   return { owner: match[1], repo: match[2] }
 }
 
-function asPermanent(err: unknown, owner: string, repo: string): PermanentError {
+function asPermanent(
+  err: unknown,
+  owner: string,
+  repo: string,
+  context?: string
+): PermanentError {
   const status = (err as { status?: number }).status
-  const message = (err as { message?: string }).message ?? 'GitHub API error'
-  if (status === 404) return new PermanentError(`Repo ${owner}/${repo} not found or PAT lacks access`)
-  if (status === 401) return new PermanentError('GitHub PAT is invalid or expired')
-  if (status === 403) return new PermanentError(`PAT does not have permission to write to ${owner}/${repo}`)
-  if (status === 422) return new PermanentError(`Validation error from GitHub: ${message}`)
-  return new PermanentError(`GitHub API: ${message}`)
+  const ghMessage =
+    (err as { response?: { data?: { message?: string } } }).response?.data?.message ??
+    (err as { message?: string }).message ??
+    'GitHub API error'
+  const where = context ? ` (while ${context})` : ''
+
+  if (status === 404) return new PermanentError(`Repo ${owner}/${repo} not found, or your GitHub account doesn't have access${where}`)
+  if (status === 401) return new PermanentError(`GitHub auth failed — try Disconnect + Connect again${where}`)
+  if (status === 403) return new PermanentError(`Permission denied writing to ${owner}/${repo}. Make sure you have write access${where}`)
+  if (status === 422) return new PermanentError(`GitHub rejected the request: ${ghMessage}${where}`)
+  if (status != null) return new PermanentError(`GitHub HTTP ${status}: ${ghMessage}${where}`)
+  return new PermanentError(`GitHub API: ${ghMessage}${where}`)
 }

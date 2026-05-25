@@ -32,6 +32,14 @@ export function errorHandler(
     return
   }
 
+  // PermanentError (from job pipeline + github pusher) means the user has
+  // something to fix — bad URL, no access, missing branch. Surface the
+  // actual message instead of squashing it to "Internal server error".
+  if ((err as { permanent?: boolean }).permanent === true || err.name === 'PermanentError') {
+    res.status(422).json({ error: err.message })
+    return
+  }
+
   // Validation errors from Zod surface as plain Errors with readable messages
   if (err.name === 'ZodError') {
     res.status(422).json({ error: 'Validation error', detail: err.message })
