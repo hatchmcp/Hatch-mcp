@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/empty-state'
 import { SecretInput } from '@/components/secret-input'
 import { InstallSnippet } from '@/components/install-snippet'
 import { KeyRevealCard } from '@/components/key-reveal-card'
+import { HostedRuntimeNotice } from '@/components/hosted-runtime-notice'
 import { useProject } from '@/hooks/use-projects'
 import { useMcpServer, mcpServerKey } from '@/hooks/use-mcp-server'
 import { useDeployments, useDeploy, deploymentsKey } from '@/hooks/use-deployments'
@@ -146,12 +147,14 @@ export default function DeployPage() {
             <Button asChild variant="secondary" size="md">
               <Link href={`/projects/${projectId}/deployments`}>
                 <History />
-                History
+                Deployments
               </Link>
             </Button>
           ) : null
         }
       />
+
+      <HostedRuntimeNotice projectId={projectId} />
 
       {jobId && (
         <JobBanner

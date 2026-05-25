@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
 import { useProject } from '@/hooks/use-projects'
 import { useUsage } from '@/hooks/use-usage'
+import { HostedRuntimeNotice } from '@/components/hosted-runtime-notice'
 import { formatCount } from '@/lib/format'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -41,6 +42,8 @@ export default function AnalyticsPage() {
         description="Calls, errors, latency"
         actions={<RangePicker value={days} onChange={setDays} />}
       />
+
+      <HostedRuntimeNotice projectId={projectId} />
 
       {isLoading && (
         <div className="space-y-5">

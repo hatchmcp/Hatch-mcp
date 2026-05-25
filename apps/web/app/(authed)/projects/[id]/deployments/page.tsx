@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/page-header'
 import { EmptyState } from '@/components/empty-state'
 import { useProject } from '@/hooks/use-projects'
 import { useDeployments, useRollback } from '@/hooks/use-deployments'
+import { HostedRuntimeNotice } from '@/components/hosted-runtime-notice'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ApiError } from '@/lib/api'
@@ -85,6 +86,8 @@ export default function DeploymentsPage() {
           </>
         }
       />
+
+      <HostedRuntimeNotice projectId={projectId} />
 
       {isLoading && (
         <div className="space-y-2">

@@ -11,6 +11,7 @@ import jobsRouter from './routes/jobs.js'
 import ingestRouter from './routes/ingest.js'
 import generateRouter from './routes/generate.js'
 import deployRouter from './routes/deploy.js'
+import exportRouter from './routes/export.js'
 import analyticsRouter from './routes/analytics.js'
 import webhooksRouter from './routes/webhooks.js'
 import activityRouter from './routes/activity.js'
@@ -36,6 +37,7 @@ export function createApp() {
   app.use('/api/v1/projects/:id/ingest', ingestRouter)
   app.use('/api/v1/projects/:id', generateRouter)
   app.use('/api/v1/projects/:id', deployRouter)
+  app.use('/api/v1/projects/:id', exportRouter)
   app.use('/api/v1/projects/:id/usage', analyticsRouter)
   app.use('/api/v1/projects/:id', testsRouter)
   app.use('/api/v1/activity', activityRouter)

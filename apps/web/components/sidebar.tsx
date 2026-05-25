@@ -16,6 +16,7 @@ import {
   BarChart3,
   ArrowLeft,
   ChevronRight,
+  Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/sidebar-context'
@@ -46,6 +47,7 @@ function projectPipeline(projectId: string): Item[] {
     { label: 'Endpoints', href: `/projects/${projectId}/endpoints`, icon: ListChecks },
     { label: 'Tools', href: `/projects/${projectId}/tools`, icon: Wrench },
     { label: 'Tests', href: `/projects/${projectId}/tests`, icon: TestTube },
+    { label: 'Export', href: `/projects/${projectId}/export`, icon: Package },
   ]
 }
 
