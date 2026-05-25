@@ -38,14 +38,20 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
   const octokit = new Octokit({ auth: token })
 
   // 1. Resolve the parent commit — branch head if it exists, else the repo's default branch head
+  //
+  // Status codes we treat as "no parent yet":
+  //   404 → branch doesn't exist (but the repo might still have other branches)
+  //   409 → "Git Repository is empty" — repo has zero commits at all
+  // Everything else is a real error (auth, repo missing, network).
   let parentSha: string | null = null
   try {
     const ref = await octokit.git.getRef({ owner, repo, ref: `heads/${branch}` })
     parentSha = ref.data.object.sha
   } catch (err: unknown) {
     const status = (err as { status?: number }).status
-    if (status !== 404) throw asPermanent(err, owner, repo)
-    // Branch doesn't exist — fall back to default branch
+    if (status !== 404 && status !== 409) throw asPermanent(err, owner, repo)
+    // Try the repo's default branch HEAD; if that also 404/409s, the repo
+    // really is empty and we'll write a root commit.
     try {
       const repoInfo = await octokit.repos.get({ owner, repo })
       const defaultBranch = repoInfo.data.default_branch
@@ -57,9 +63,9 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
       parentSha = defaultRef.data.object.sha
     } catch (err2: unknown) {
       const s2 = (err2 as { status?: number }).status
-      if (s2 === 404) {
+      if (s2 === 404 || s2 === 409) {
         // Empty repo with no commits — `parentSha = null` is the right thing
-        // to pass to createCommit (parents: []).
+        // to pass to createCommit (parents: []) which writes a root commit.
         parentSha = null
       } else {
         throw asPermanent(err2, owner, repo)
