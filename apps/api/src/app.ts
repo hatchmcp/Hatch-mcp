@@ -16,6 +16,7 @@ import analyticsRouter from './routes/analytics.js'
 import webhooksRouter from './routes/webhooks.js'
 import activityRouter from './routes/activity.js'
 import testsRouter from './routes/tests.js'
+import githubOauthRouter from './routes/github-oauth.js'
 
 export function createApp() {
   const app = express()
@@ -42,6 +43,11 @@ export function createApp() {
   app.use('/api/v1/projects/:id', testsRouter)
   app.use('/api/v1/activity', activityRouter)
   app.use('/api/v1/jobs', jobsRouter)
+
+  // GitHub OAuth: /oauth/github/{init,callback} + /me/github-connection
+  // The callback path is GET-only and has no auth (the state token binds
+  // the dance to a user). All other paths inside this router auth normally.
+  app.use('/api/v1', githubOauthRouter)
 
   // Health check — used by Railway and Better Stack uptime monitors
   app.get('/health', (_req, res) => {

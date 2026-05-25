@@ -6,6 +6,7 @@ import { getProject } from '../services/projects.service.js'
 import { getMcpServer, getActiveConfig } from '../services/deploy.service.js'
 import { generateMcpServerCode } from '../jobs/package/code-generator.js'
 import { pushToGitHub } from '../jobs/package/github-pusher.js'
+import { getUserGithubToken } from './github-oauth.js'
 import { McpConfigSchema } from '@hatchmcp/shared'
 import { HttpError } from '../middleware/error.js'
 import { logger } from '../lib/logger.js'
@@ -50,20 +51,23 @@ router.get('/export.zip', auth, async (req, res) => {
 
 const PushSchema = z.object({
   repo: z.string().min(1, 'Repo is required (owner/name or full URL)'),
-  token: z.string().min(1, 'GitHub PAT is required'),
   branch: z.string().min(1).default('main'),
   commit_message: z.string().min(1).max(500).default('Initial commit from Hatch'),
 })
 
 // POST /projects/:id/push-to-github — synchronously pushes the generated
-// code to the user's repo as a single commit. Returns the commit URL.
-//
-// We don't store the PAT — it's used inline and discarded. For a longer-
-// lived integration we'd add a GitHub OAuth flow, but PAT-per-push keeps
-// the trust model minimal: Hatch never holds a token that can write to
-// the user's repos.
+// code to the caller's repo as a single commit using the OAuth token Hatch
+// holds for this user. Requires the user to have connected GitHub first.
 router.post('/push-to-github', auth, async (req, res) => {
   const body = PushSchema.parse(req.body)
+
+  const connection = await getUserGithubToken(req.userId)
+  if (!connection) {
+    throw new HttpError(
+      412,
+      'Connect GitHub from the Export page before pushing.'
+    )
+  }
 
   const project = await getProject(req.params.id, req.companyId)
   const mcpServer = await getMcpServer(project.id)
@@ -76,7 +80,7 @@ router.post('/push-to-github', auth, async (req, res) => {
   const fileMap = generateMcpServerCode(config, { slug: project.slug })
 
   const result = await pushToGitHub({
-    token: body.token,
+    token: connection.token,
     repo: body.repo,
     branch: body.branch,
     commitMessage: body.commit_message,
@@ -85,6 +89,7 @@ router.post('/push-to-github', auth, async (req, res) => {
 
   logger.info('Pushed to GitHub', {
     projectId: project.id,
+    githubLogin: connection.login,
     repo: `${result.owner}/${result.repo}`,
     branch: result.branch,
     commitSha: result.commitSha,

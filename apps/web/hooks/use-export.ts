@@ -8,9 +8,10 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 export interface PushInput {
   repo: string
-  token: string
   branch?: string
   commit_message?: string
+  // No PAT here — push uses the user's OAuth token that Hatch stores after
+  // they Connect GitHub from the Export page.
 }
 
 export interface PushResult {

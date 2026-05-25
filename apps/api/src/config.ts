@@ -28,6 +28,18 @@ const ConfigSchema = z.object({
   GITHUB_APP_PRIVATE_KEY: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
 
+  // GitHub OAuth App — register at github.com/settings/applications/new with
+  // callback `{API_BASE_URL}/api/v1/oauth/github/callback`. With this set,
+  // users get a one-click "Connect GitHub" button on Export and never have
+  // to paste a PAT.
+  GITHUB_OAUTH_CLIENT_ID: z.string().optional(),
+  GITHUB_OAUTH_CLIENT_SECRET: z.string().optional(),
+
+  // Public-facing URLs — used to construct redirects back to the dashboard
+  // after the OAuth dance, and the callback URL registered with GitHub.
+  WEB_BASE_URL: z.string().default('http://localhost:3000'),
+  API_BASE_URL: z.string().default('http://localhost:5000'),
+
   // AES-256-GCM key for encrypting tenant secrets (64 hex chars = 32 bytes)
   ENCRYPTION_KEY: z.string().length(64, 'ENCRYPTION_KEY must be 64 hex characters'),
 
