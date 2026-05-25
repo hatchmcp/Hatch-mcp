@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test": "vitest run --config ../../vitest.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
     "@apidevtools/swagger-parser": "^12.1.0",
+    "@hatchmcp/exec": "*",
     "@hatchmcp/shared": "*",
     "@octokit/rest": "^22.0.1",
     "@supabase/supabase-js": "^2.105.4",
@@ -26,6 +28,8 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.8.0",

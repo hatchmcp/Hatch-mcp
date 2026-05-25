@@ -13,6 +13,8 @@ import generateRouter from './routes/generate.js'
 import deployRouter from './routes/deploy.js'
 import analyticsRouter from './routes/analytics.js'
 import webhooksRouter from './routes/webhooks.js'
+import activityRouter from './routes/activity.js'
+import testsRouter from './routes/tests.js'
 
 export function createApp() {
   const app = express()
@@ -35,6 +37,8 @@ export function createApp() {
   app.use('/api/v1/projects/:id', generateRouter)
   app.use('/api/v1/projects/:id', deployRouter)
   app.use('/api/v1/projects/:id/usage', analyticsRouter)
+  app.use('/api/v1/projects/:id', testsRouter)
+  app.use('/api/v1/activity', activityRouter)
   app.use('/api/v1/jobs', jobsRouter)
 
   // Health check — used by Railway and Better Stack uptime monitors

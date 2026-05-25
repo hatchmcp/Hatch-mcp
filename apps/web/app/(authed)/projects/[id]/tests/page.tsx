@@ -18,6 +18,7 @@ import { JobBanner } from '@/components/job-banner'
 import { EmptyState } from '@/components/empty-state'
 import { useProject } from '@/hooks/use-projects'
 import { useMcpServer, useRunTests } from '@/hooks/use-mcp-server'
+import { useRunTool } from '@/hooks/use-tool-simulator'
 import { useJobStream } from '@/hooks/use-job-stream'
 import { useJobRail } from '@/components/job-rail-context'
 import { cn } from '@/lib/utils'
@@ -130,14 +131,16 @@ export default function TestsPage() {
         />
       )}
 
-      {report && <TestReportView report={report} />}
+      {report && mcpServer && (
+        <TestReportView report={report} projectId={projectId} />
+      )}
     </div>
   )
 }
 
 /* ─────────────────────────── Report view ─────────────────────────── */
 
-function TestReportView({ report }: { report: TestReport }) {
+function TestReportView({ report, projectId }: { report: TestReport; projectId: string }) {
   const passing = report.toolResults.filter((r) => r.status === 'passed').length
   const failing = report.toolResults.filter((r) => r.status === 'failed').length
 
@@ -205,6 +208,7 @@ function TestReportView({ report }: { report: TestReport }) {
             <ResultRow
               key={`${result.toolName}-${i}`}
               result={result}
+              projectId={projectId}
               isLast={i === report.toolResults.length - 1}
             />
           ))}
@@ -216,56 +220,136 @@ function TestReportView({ report }: { report: TestReport }) {
 
 function ResultRow({
   result,
+  projectId,
   isLast,
 }: {
   result: TestReport['toolResults'][number]
+  projectId: string
   isLast: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const [simOpen, setSimOpen] = useState(false)
+  const [inputsJson, setInputsJson] = useState('{}')
+  const [secretsJson, setSecretsJson] = useState('{}')
+  const [simResult, setSimResult] = useState<string | null>(null)
+  const runTool = useRunTool(projectId)
   const hasError = result.status === 'failed' && result.error
+
+  async function handleRunTool() {
+    let inputs: Record<string, unknown>
+    let secrets: Record<string, string>
+    try {
+      inputs = JSON.parse(inputsJson) as Record<string, unknown>
+      secrets = JSON.parse(secretsJson) as Record<string, string>
+    } catch {
+      toast.error('Inputs and secrets must be valid JSON objects')
+      return
+    }
+    try {
+      const res = await runTool.mutateAsync({
+        tool_name: result.toolName,
+        inputs,
+        secrets,
+      })
+      setSimResult(JSON.stringify(res, null, 2))
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Tool call failed')
+    }
+  }
 
   return (
     <div className={cn(!isLast && 'border-b border-border')}>
-      <button
-        type="button"
-        onClick={() => hasError && setOpen((v) => !v)}
-        disabled={!hasError}
-        className={cn(
-          'w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
-          hasError && 'hover:bg-surface-2 cursor-pointer'
-        )}
-      >
-        {result.status === 'passed' ? (
-          <CheckCircle2 className="size-3.5 text-accent shrink-0" />
-        ) : (
-          <XCircle className="size-3.5 text-error shrink-0" />
-        )}
-        <span className="font-mono text-xs text-text-primary truncate">
-          {result.toolName}
-        </span>
-        <span
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => hasError && setOpen((v) => !v)}
+          disabled={!hasError}
           className={cn(
-            'ml-auto text-[10px] font-mono uppercase tracking-wider',
-            result.status === 'passed' ? 'text-accent' : 'text-error'
+            'flex flex-1 items-center gap-3 text-sm transition-colors min-w-0',
+            hasError && 'hover:bg-surface-2 cursor-pointer rounded-sm -mx-1 px-1'
           )}
         >
-          {result.status}
-        </span>
-        {hasError && (
-          <ChevronRight
+          {result.status === 'passed' ? (
+            <CheckCircle2 className="size-3.5 text-accent shrink-0" />
+          ) : (
+            <XCircle className="size-3.5 text-error shrink-0" />
+          )}
+          <span className="font-mono text-xs text-text-primary truncate">
+            {result.toolName}
+          </span>
+          <span
             className={cn(
-              'size-3 text-text-tertiary transition-transform',
-              open && 'rotate-90'
+              'ml-auto text-[10px] font-mono uppercase tracking-wider',
+              result.status === 'passed' ? 'text-accent' : 'text-error'
             )}
-          />
-        )}
-      </button>
+          >
+            {result.status}
+          </span>
+          {hasError && (
+            <ChevronRight
+              className={cn(
+                'size-3 text-text-tertiary transition-transform',
+                open && 'rotate-90'
+              )}
+            />
+          )}
+        </button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setSimOpen((v) => !v)}
+          className="shrink-0"
+        >
+          Try it
+        </Button>
+      </div>
 
       {hasError && open && (
         <div className="px-4 pb-3 -mt-1">
           <div className="font-mono text-[11px] text-error bg-error/5 border border-error/15 rounded-sm px-3 py-2 leading-relaxed whitespace-pre-wrap break-words">
             {result.error}
           </div>
+        </div>
+      )}
+
+      {simOpen && (
+        <div className="px-4 pb-4 space-y-3 border-t border-border bg-surface-2/50">
+          <p className="text-[11px] text-text-tertiary pt-3">
+            Live call against your base API (uses credentials you provide — not stored).
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-[10px] font-mono uppercase text-text-tertiary">Inputs (JSON)</span>
+              <textarea
+                value={inputsJson}
+                onChange={(e) => setInputsJson(e.target.value)}
+                className="mt-1 w-full min-h-[72px] font-mono text-xs border border-border rounded-sm bg-surface px-2 py-1.5"
+              />
+            </label>
+            <label className="block">
+              <span className="text-[10px] font-mono uppercase text-text-tertiary">Secrets (JSON)</span>
+              <textarea
+                value={secretsJson}
+                onChange={(e) => setSecretsJson(e.target.value)}
+                className="mt-1 w-full min-h-[72px] font-mono text-xs border border-border rounded-sm bg-surface px-2 py-1.5"
+              />
+            </label>
+          </div>
+          <Button size="sm" onClick={handleRunTool} disabled={runTool.isPending}>
+            {runTool.isPending ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Calling…
+              </>
+            ) : (
+              'Run tool'
+            )}
+          </Button>
+          {simResult && (
+            <pre className="font-mono text-[11px] text-text-secondary bg-surface border border-border rounded-sm p-3 overflow-x-auto max-h-48">
+              {simResult}
+            </pre>
+          )}
         </div>
       )}
     </div>

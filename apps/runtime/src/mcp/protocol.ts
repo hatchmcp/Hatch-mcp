@@ -1,5 +1,5 @@
 import type { McpConfig } from '@hatchmcp/shared'
-import { executeToolCall } from '../exec/http-call.js'
+import { executeToolCall } from '@hatchmcp/exec'
 import { logger } from '../lib/logger.js'
 
 export const MCP_PROTOCOL_VERSION = '2024-11-05'

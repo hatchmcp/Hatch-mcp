@@ -1,7 +1,13 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { auth } from '../middleware/auth.js'
-import { listProjects, getProject, createProject, deleteProject } from '../services/projects.service.js'
+import {
+  listProjects,
+  getProject,
+  createProject,
+  updateProject,
+  deleteProject,
+} from '../services/projects.service.js'
 
 const router = Router()
 
@@ -33,8 +39,24 @@ router.post('/', auth, async (req, res) => {
   res.status(201).json({ project })
 })
 
+const UpdateProjectSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    description: z.string().max(500).nullable().optional(),
+    base_api_url: z.string().url().nullable().optional(),
+  })
+  .refine((b) => b.name !== undefined || b.description !== undefined || b.base_api_url !== undefined, {
+    message: 'At least one field is required',
+  })
+
 router.get('/:id', auth, async (req, res) => {
   const project = await getProject(req.params.id, req.companyId)
+  res.json({ project })
+})
+
+router.put('/:id', auth, async (req, res) => {
+  const body = UpdateProjectSchema.parse(req.body)
+  const project = await updateProject(req.params.id, req.companyId, body)
   res.json({ project })
 })
 

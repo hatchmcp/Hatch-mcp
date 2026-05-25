@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Trash2, AlertTriangle, Loader2, KeyRound, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/page-header'
 import { KeyRevealCard } from '@/components/key-reveal-card'
-import { useProject, useDeleteProject } from '@/hooks/use-projects'
+import { useProject, useDeleteProject, useUpdateProject } from '@/hooks/use-projects'
 import { useMcpServer } from '@/hooks/use-mcp-server'
 import { useRotateRuntimeKey } from '@/hooks/use-deployments'
 import { timeAgo } from '@/lib/format'
@@ -50,32 +50,12 @@ export default function SettingsPage() {
 
       {project && (
         <div className="space-y-5">
-          {/* General — read-only info */}
-          <Card label="General" hint="Sourced from the project record. Editing requires a PUT endpoint (not in the API yet).">
-            <Row label="Name" value={project.name} mono={false} />
-            <Row label="Slug" value={project.slug} mono />
-            <Row
-              label="Subdomain"
-              value={
-                mcpServer
-                  ? `${mcpServer.mcp_server.subdomain}.${MCP_DOMAIN}`
-                  : `<not generated yet>`
-              }
-              mono
-              dim={!mcpServer}
-            />
-            <Row
-              label="Source"
-              value={SOURCE_LABELS[project.source_type] ?? project.source_type}
-            />
+          <GeneralSettings project={project} mcpServer={mcpServer} />
+
+          <Card label="Source" hint="Set at project creation — not editable here.">
+            <Row label="Type" value={SOURCE_LABELS[project.source_type] ?? project.source_type} />
             <Row label="Source URL" value={project.source_url ?? '—'} mono dim={!project.source_url} />
             <Row label="Branch / ref" value={project.source_ref ?? '—'} mono dim={!project.source_ref} />
-            <Row label="Base API URL" value={project.base_api_url ?? '—'} mono dim={!project.base_api_url} />
-            <Row
-              label="Description"
-              value={project.description ?? '—'}
-              dim={!project.description}
-            />
             <Row
               label="Created"
               value={`${timeAgo(project.created_at)} · ${new Date(project.created_at).toLocaleDateString()}`}
@@ -107,6 +87,113 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+/* ─────────────────────────── General settings ─────────────────────────── */
+
+function GeneralSettings({
+  project,
+  mcpServer,
+}: {
+  project: {
+    id: string
+    name: string
+    slug: string
+    base_api_url: string | null
+    description: string | null
+  }
+  mcpServer: { mcp_server: { subdomain: string } } | null | undefined
+}) {
+  const update = useUpdateProject(project.id)
+  const [name, setName] = useState(project.name)
+  const [baseUrl, setBaseUrl] = useState(project.base_api_url ?? '')
+  const [description, setDescription] = useState(project.description ?? '')
+
+  useEffect(() => {
+    setName(project.name)
+    setBaseUrl(project.base_api_url ?? '')
+    setDescription(project.description ?? '')
+  }, [project.name, project.base_api_url, project.description])
+
+  const dirty =
+    name !== project.name ||
+    baseUrl !== (project.base_api_url ?? '') ||
+    description !== (project.description ?? '')
+
+  async function handleSave() {
+    if (!name.trim()) {
+      toast.error('Name is required')
+      return
+    }
+    if (baseUrl.trim() && !/^https?:\/\//i.test(baseUrl.trim())) {
+      toast.error('Base URL must start with http:// or https://')
+      return
+    }
+    try {
+      await update.mutateAsync({
+        name: name.trim(),
+        base_api_url: baseUrl.trim() ? baseUrl.trim() : null,
+        description: description.trim() ? description.trim() : null,
+      })
+      toast.success('Project updated')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Save failed')
+    }
+  }
+
+  return (
+    <section className="border border-border rounded-md bg-surface overflow-hidden">
+      <header className="px-5 py-3 border-b border-border bg-surface-2 flex items-center justify-between gap-4">
+        <span className="text-[10px] font-mono uppercase tracking-wider text-text-tertiary">
+          General
+        </span>
+        <span className="text-[11px] text-text-tertiary font-mono truncate">
+          {project.slug}
+          {mcpServer
+            ? ` · ${mcpServer.mcp_server.subdomain}.${MCP_DOMAIN}`
+            : ''}
+        </span>
+      </header>
+
+      <div className="px-5 py-4 space-y-4">
+        <div>
+          <label className="text-xs text-text-secondary mb-1.5 block">Name</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} disabled={update.isPending} />
+        </div>
+        <div>
+          <label className="text-xs text-text-secondary mb-1.5 block">Base API URL</label>
+          <Input
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            placeholder="https://api.example.com"
+            className="font-mono"
+            disabled={update.isPending}
+          />
+        </div>
+        <div>
+          <label className="text-xs text-text-secondary mb-1.5 block">Description</label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Optional"
+            disabled={update.isPending}
+          />
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={handleSave} disabled={!dirty || update.isPending}>
+            {update.isPending ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Saving…
+              </>
+            ) : (
+              'Save changes'
+            )}
+          </Button>
+        </div>
+      </div>
+    </section>
   )
 }
 

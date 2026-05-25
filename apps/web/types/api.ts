@@ -96,6 +96,26 @@ export interface EndpointUpdate {
 
 /* ─────────────────────────── Jobs ─────────────────────────── */
 
+export interface ActivityJob extends Job {
+  project_name: string
+  project_slug: string
+}
+
+export interface AuthTestResult {
+  ok: boolean
+  status: number
+  message: string
+  latency_ms: number
+}
+
+export interface ToolSimulatorResult {
+  tool_name: string
+  success: boolean
+  statusCode: number
+  data: unknown
+  latencyMs: number
+}
+
 export interface Job {
   id: string
   project_id: string

@@ -62,6 +62,47 @@ export async function createProject(opts: {
   return project
 }
 
+export async function updateProject(
+  id: string,
+  companyId: string,
+  patch: {
+    name?: string
+    description?: string | null
+    base_api_url?: string | null
+  }
+): Promise<ProjectRow> {
+  const sets: string[] = []
+  const values: unknown[] = []
+  let i = 1
+
+  if (patch.name !== undefined) {
+    sets.push(`name = $${i++}`)
+    values.push(patch.name)
+  }
+  if (patch.description !== undefined) {
+    sets.push(`description = $${i++}`)
+    values.push(patch.description)
+  }
+  if (patch.base_api_url !== undefined) {
+    sets.push(`base_api_url = $${i++}`)
+    values.push(patch.base_api_url)
+  }
+
+  if (sets.length === 0) {
+    return getProject(id, companyId)
+  }
+
+  values.push(id, companyId)
+  const row = await queryOne<ProjectRow>(
+    `UPDATE projects SET ${sets.join(', ')}, updated_at = now()
+     WHERE id = $${i++} AND company_id = $${i}
+     RETURNING *`,
+    values
+  )
+  if (!row) throw new HttpError(404, 'Project not found')
+  return row
+}
+
 export async function deleteProject(id: string, companyId: string): Promise<void> {
   const result = await queryOne<{ id: string }>(
     `DELETE FROM projects WHERE id = $1 AND company_id = $2 RETURNING id`,

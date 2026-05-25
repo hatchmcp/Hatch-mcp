@@ -63,3 +63,22 @@ export function useStartIngest() {
       api.post<{ job_id: string }>(`/projects/${projectId}/ingest`),
   })
 }
+
+export interface UpdateProjectInput {
+  name?: string
+  description?: string | null
+  base_api_url?: string | null
+}
+
+export function useUpdateProject(projectId: string) {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: (input: UpdateProjectInput) =>
+      api.put<ProjectResponse>(`/projects/${projectId}`, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['project', projectId] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+    },
+  })
+}

@@ -89,6 +89,8 @@ Visit http://localhost:3000 → sign in with GitHub or email magic link → crea
 | `npm run dev:web` | Start the Next.js dashboard |
 | `npm run build --workspace=apps/web` | Production build of the dashboard |
 | `npm run typecheck --workspace=apps/web` | TypeScript check, no emit |
+| `npm test` | Run Vitest unit tests (shared, exec, api) |
+| `npm run test:watch` | Vitest in watch mode |
 
 ## How the pipeline runs
 
@@ -106,11 +108,14 @@ Each step is a job tracked in the `jobs` table. The frontend subscribes via SSE 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/api/v1/me` | Current user + workspace |
-| `GET` `POST` `DELETE` | `/api/v1/projects[/:id]` | Project CRUD |
+| `GET` `POST` `PUT` `DELETE` | `/api/v1/projects[/:id]` | Project CRUD (+ update name, description, base URL) |
 | `GET` `PATCH` | `/api/v1/projects/:id/endpoints` | List + bulk update selection |
 | `POST` | `/api/v1/projects/:id/ingest` | Kick ingest job |
 | `POST` `GET` | `/api/v1/projects/:id/{generate,mcp-server}` | Generate config / read current version |
 | `POST` | `/api/v1/projects/:id/test` | Run test pipeline |
+| `POST` | `/api/v1/projects/:id/auth/test` | Probe auth credentials against base API |
+| `POST` | `/api/v1/projects/:id/tests/run-tool` | Live try-it-now tool call (simulator) |
+| `GET` | `/api/v1/activity` | Workspace activity feed (last 50 jobs) |
 | `POST` | `/api/v1/projects/:id/deploy` | Deploy with encrypted secrets |
 | `GET` `POST` | `/api/v1/projects/:id/{deployments,rollback}` | History + rollback |
 | `GET` | `/api/v1/projects/:id/usage?days=N` | Summary + top tools + recent errors + hourly buckets |
@@ -122,13 +127,9 @@ Each step is a job tracked in the `jobs` table. The frontend subscribes via SSE 
 
 **Frontend is launch-ready.** All workspace + project routes resolve to real pages, the full ingest → extract → generate → test → deploy flow is wired with live SSE in the job rail, ⌘K command palette works, mobile users get a friendly fallback, and there's a custom 404 + error boundary.
 
-Open gaps that need backend support before they're useful on the web side:
+Remaining gaps (workspace admin still placeholder in the UI):
 
-- **`PUT /projects/:id`** — to make the project Settings form editable (rename, change description, base URL)
-- **`POST /projects/:id/auth/test`** — to test an auth config before generation
-- **`POST /tests/:id/run-tool`** — to power the "try-it-now" simulator on the Tests page
-- **Workspace endpoints** for Members / API keys / webhooks (currently rendered as "coming next" placeholders)
-- **Aggregate activity endpoint** — the Activity page currently does N+1 fan-out via parallel TanStack Queries; a single workspace-scoped feed would be cleaner
+- **Workspace endpoints** for Members / API keys / webhooks (settings placeholders)
 
 ## License
 

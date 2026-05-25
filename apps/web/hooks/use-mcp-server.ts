@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ApiError } from '@/lib/api'
-import type { AuthType, McpServerResponse } from '@/types/api'
+import type { AuthTestResult, AuthType, McpServerResponse } from '@/types/api'
 
 export const mcpServerKey = (projectId: string) => ['mcp-server', projectId] as const
 
@@ -45,5 +45,18 @@ export function useGenerate(projectId: string) {
 export function useRunTests(projectId: string) {
   return useMutation({
     mutationFn: () => api.post<{ job_id: string }>(`/projects/${projectId}/test`),
+  })
+}
+
+export interface AuthTestInput {
+  auth_type: AuthType
+  base_api_url: string
+  secrets: Record<string, string>
+}
+
+export function useTestAuth(projectId: string) {
+  return useMutation({
+    mutationFn: (input: AuthTestInput) =>
+      api.post<AuthTestResult>(`/projects/${projectId}/auth/test`, input),
   })
 }

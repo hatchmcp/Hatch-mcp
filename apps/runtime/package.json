@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@hatchmcp/exec": "*",
     "@hatchmcp/shared": "*",
     "axios": "^1.16.1",
     "dotenv": "^17.4.2",

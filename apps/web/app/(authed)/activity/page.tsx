@@ -1,8 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
-import { useQueries } from '@tanstack/react-query'
 import {
   CheckCircle2,
   XCircle,
@@ -13,11 +11,10 @@ import {
 import { PageHeader } from '@/components/page-header'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/empty-state'
-import { useProjects } from '@/hooks/use-projects'
-import { api } from '@/lib/api'
+import { useActivity } from '@/hooks/use-activity'
 import { timeAgo } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import type { Job, JobType, JobStatus, Project } from '@/types/api'
+import type { ActivityJob, JobType, JobStatus } from '@/types/api'
 
 const JOB_VERB: Record<JobType, string> = {
   ingest: 'Ingested',
@@ -53,35 +50,9 @@ function pageForJob(type: JobType, projectId: string): string {
   }
 }
 
-type JobWithProject = Job & { project: Project }
-
 export default function ActivityPage() {
-  const { data: projectsData, isLoading: projectsLoading } = useProjects()
-  const projects = useMemo(() => projectsData?.projects ?? [], [projectsData])
-
-  // Parallel-fetch jobs for every project — TanStack Query dedupes + caches
-  const jobsQueries = useQueries({
-    queries: projects.map((p) => ({
-      queryKey: ['jobs', p.id],
-      queryFn: () => api.get<{ jobs: Job[] }>(`/jobs/projects/${p.id}/jobs`),
-      staleTime: 20_000,
-    })),
-  })
-
-  const allLoading = projectsLoading || jobsQueries.some((q) => q.isLoading)
-
-  const events = useMemo<JobWithProject[]>(() => {
-    const flat: JobWithProject[] = []
-    projects.forEach((p, i) => {
-      const jobs = jobsQueries[i]?.data?.jobs ?? []
-      for (const j of jobs) flat.push({ ...j, project: p })
-    })
-    flat.sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
-    return flat.slice(0, 50)
-  }, [projects, jobsQueries.map((q) => q.dataUpdatedAt).join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { data, isLoading } = useActivity()
+  const events = data?.jobs ?? []
 
   return (
     <div className="max-w-[1100px] mx-auto px-6 py-8">
@@ -90,7 +61,7 @@ export default function ActivityPage() {
         description="Recent jobs across the workspace"
       />
 
-      {allLoading && (
+      {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-14 rounded-md" />
@@ -98,7 +69,7 @@ export default function ActivityPage() {
         </div>
       )}
 
-      {!allLoading && events.length === 0 && (
+      {!isLoading && events.length === 0 && (
         <EmptyState
           bracketArt={`┌──────────────┐
 │  no events   │
@@ -119,12 +90,10 @@ export default function ActivityPage() {
   )
 }
 
-/* ─────────────────────────── Event row ─────────────────────────── */
-
-function EventRow({ event }: { event: JobWithProject }) {
+function EventRow({ event }: { event: ActivityJob }) {
   const verb = JOB_VERB[event.type] ?? event.type
   const tone = JOB_TONE[event.type] ?? 'text-text-secondary'
-  const href = pageForJob(event.type, event.project.id)
+  const href = pageForJob(event.type, event.project_id)
 
   return (
     <li>
@@ -142,7 +111,7 @@ function EventRow({ event }: { event: JobWithProject }) {
         </span>
 
         <span className="text-sm text-text-primary truncate flex-1">
-          {event.project.name}
+          {event.project_name}
         </span>
 
         <span
