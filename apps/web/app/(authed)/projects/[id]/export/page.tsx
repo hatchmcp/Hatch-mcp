@@ -213,6 +213,7 @@ function GithubPushCard({ projectId }: { projectId: string }) {
   const [repo, setRepo] = useState('')
   const [branch, setBranch] = useState('main')
   const [commitMessage, setCommitMessage] = useState('Initial commit from Hatch')
+  const [subfolder, setSubfolder] = useState('')
   const [result, setResult] = useState<PushResult | null>(null)
 
   const isConnected = connection?.connected === true
@@ -258,6 +259,7 @@ function GithubPushCard({ projectId }: { projectId: string }) {
         repo: trimmedRepo,
         branch: branch.trim() || 'main',
         commit_message: commitMessage.trim() || 'Initial commit from Hatch',
+        subfolder: subfolder.trim() || undefined,
       })
       setResult(res)
       toast.success(`Pushed to ${res.owner}/${res.repo}`)
@@ -389,6 +391,21 @@ function GithubPushCard({ projectId }: { projectId: string }) {
                 />
               </Field>
             </div>
+
+            <Field
+              label="Subfolder (optional)"
+              hint="Leave blank to push at the repo root. For an existing repo with other code, set this to e.g. mcp to nest the generated files."
+            >
+              <Input
+                type="text"
+                placeholder="mcp"
+                value={subfolder}
+                onChange={(e) => setSubfolder(e.target.value)}
+                className="font-mono text-xs"
+                disabled={push.isPending}
+                autoComplete="off"
+              />
+            </Field>
 
             <div className="mt-auto pt-2 flex items-center justify-end">
               <Button type="submit" disabled={push.isPending || !repo.trim()}>

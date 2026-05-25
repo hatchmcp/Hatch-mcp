@@ -2,7 +2,7 @@ import { Octokit } from '@octokit/rest'
 import { PermanentError } from '../runner.js'
 
 export interface PushOptions {
-  /** GitHub Personal Access Token (fine-grained PAT with Contents: Read & Write) */
+  /** OAuth access token (or fine-grained PAT) with `repo` scope */
   token: string
   /** Repo URL (https://github.com/<owner>/<name>) or owner/name */
   repo: string
@@ -10,7 +10,9 @@ export interface PushOptions {
   branch: string
   /** Commit message */
   commitMessage: string
-  /** path → file contents */
+  /** Optional subfolder to nest all generated files inside (e.g. "mcp"). */
+  subfolder?: string
+  /** path → file contents (paths are relative to subfolder if set) */
   files: Record<string, string>
 }
 
@@ -32,10 +34,19 @@ export interface PushResult {
  * the required PAT scope small (no "Administration" permission needed).
  */
 export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
-  const { token, branch, commitMessage, files } = opts
+  const { token, branch, commitMessage } = opts
   const { owner, repo } = parseRepo(opts.repo)
 
   const octokit = new Octokit({ auth: token })
+
+  // Apply subfolder prefix to every file path. Strip leading/trailing slashes
+  // so "mcp", "/mcp", "mcp/" all behave the same.
+  const cleanSubfolder = opts.subfolder?.replace(/^\/+|\/+$/g, '') ?? ''
+  const prefix = cleanSubfolder ? `${cleanSubfolder}/` : ''
+  const files: Record<string, string> = {}
+  for (const [path, content] of Object.entries(opts.files)) {
+    files[`${prefix}${path}`] = content
+  }
 
   // 1. Resolve the parent commit — branch head if it exists, else the repo's default branch head
   //
@@ -71,6 +82,23 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
         throw asPermanent(err2, owner, repo)
       }
     }
+  }
+
+  // Empty-repo special case: the Git Data API (blobs/trees/commits) returns
+  // 409 "Git Repository is empty" until the repo has been initialized with at
+  // least one commit. The Contents API is the only way to write that first
+  // file — it auto-initializes the repo and creates the branch. So for empty
+  // repos we use Contents API end to end (one PUT per file = one commit per
+  // file). Slower than the Git Data path but the only path that works.
+  if (parentSha === null) {
+    return await pushViaContentsApi({
+      octokit,
+      owner,
+      repo,
+      branch,
+      commitMessage,
+      files,
+    })
   }
 
   // 2. Create a blob for each file. Each call returns a SHA we use in the tree.
@@ -159,6 +187,50 @@ export async function pushToGitHub(opts: PushOptions): Promise<PushResult> {
     branch,
     commitSha,
     commitUrl: `https://github.com/${owner}/${repo}/commit/${commitSha}`,
+    treeUrl: `https://github.com/${owner}/${repo}/tree/${branch}`,
+  }
+}
+
+async function pushViaContentsApi(args: {
+  octokit: Octokit
+  owner: string
+  repo: string
+  branch: string
+  commitMessage: string
+  files: Record<string, string>
+}): Promise<PushResult> {
+  const { octokit, owner, repo, branch, commitMessage, files } = args
+  const entries = Object.entries(files)
+
+  let lastCommitSha = ''
+  let i = 0
+  for (const [path, content] of entries) {
+    i++
+    const message =
+      entries.length === 1
+        ? commitMessage
+        : `${commitMessage} (${i}/${entries.length}: ${path})`
+    try {
+      const res = await octokit.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path,
+        message,
+        content: Buffer.from(content, 'utf8').toString('base64'),
+        branch,
+      })
+      lastCommitSha = res.data.commit?.sha ?? lastCommitSha
+    } catch (err) {
+      throw asPermanent(err, owner, repo, `creating ${path}`)
+    }
+  }
+
+  return {
+    owner,
+    repo,
+    branch,
+    commitSha: lastCommitSha,
+    commitUrl: `https://github.com/${owner}/${repo}/commit/${lastCommitSha}`,
     treeUrl: `https://github.com/${owner}/${repo}/tree/${branch}`,
   }
 }

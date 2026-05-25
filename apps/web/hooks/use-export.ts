@@ -10,6 +10,8 @@ export interface PushInput {
   repo: string
   branch?: string
   commit_message?: string
+  /** Optional — nest the generated files in a subfolder of the repo. */
+  subfolder?: string
   // No PAT here — push uses the user's OAuth token that Hatch stores after
   // they Connect GitHub from the Export page.
 }

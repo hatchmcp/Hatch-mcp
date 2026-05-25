@@ -53,6 +53,12 @@ const PushSchema = z.object({
   repo: z.string().min(1, 'Repo is required (owner/name or full URL)'),
   branch: z.string().min(1).default('main'),
   commit_message: z.string().min(1).max(500).default('Initial commit from Hatch'),
+  /** Optional subfolder — set to e.g. "mcp" to nest files inside an existing repo. */
+  subfolder: z
+    .string()
+    .max(120)
+    .optional()
+    .transform((v) => (v ? v.replace(/^\/+|\/+$/g, '') : undefined)),
 })
 
 // POST /projects/:id/push-to-github — synchronously pushes the generated
@@ -84,6 +90,7 @@ router.post('/push-to-github', auth, async (req, res) => {
     repo: body.repo,
     branch: body.branch,
     commitMessage: body.commit_message,
+    subfolder: body.subfolder,
     files: fileMap,
   })
 
