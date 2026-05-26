@@ -269,6 +269,35 @@ router.get('/apps/:id/sessions', auth, async (req, res) => {
 })
 
 /* ────────────────────────────────────────────────────────────────
+ * DELETE /api/v1/oauth/apps/:id/sessions/:sessionId — revoke one user
+ * Dashboard-side flavor of the broker's POST /revoke (which is for
+ * the SDK). Only the app owner can do this.
+ * ──────────────────────────────────────────────────────────────── */
+
+router.delete('/apps/:id/sessions/:sessionId', auth, async (req, res) => {
+  const app = await loadOwnedApp(req.params.id, req.userId)
+
+  const session = await queryOne<{ id: string; revoked_at: Date | null }>(
+    `SELECT id, revoked_at FROM hatch_oauth_sessions
+       WHERE id = $1 AND company_id = $2`,
+    [req.params.sessionId, app.id]
+  )
+  if (!session) throw new HttpError(404, 'Session not found')
+
+  if (!session.revoked_at) {
+    await execute(
+      `UPDATE hatch_oauth_sessions SET revoked_at = now() WHERE id = $1`,
+      [session.id]
+    )
+    logger.info('OAuth session revoked (dashboard)', {
+      app_id: app.id,
+      session_id: session.id,
+    })
+  }
+  res.status(204).send()
+})
+
+/* ────────────────────────────────────────────────────────────────
  * GET /api/v1/oauth/apps/:id/access-log — paginated exchange audit
  * ──────────────────────────────────────────────────────────────── */
 

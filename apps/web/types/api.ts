@@ -367,6 +367,47 @@ export interface RotateOAuthSecretResponse {
   rotated_at: string
 }
 
+export interface OAuthAppSession {
+  id: string
+  user_id: string
+  scopes: string[]
+  revoked: boolean
+  revoked_at: string | null
+  real_token_expires_at: string | null
+  metadata: Record<string, unknown>
+  created_at: string
+  last_used_at: string | null
+  access_count: number
+}
+
+export interface OAuthAppSessionsResponse {
+  sessions: OAuthAppSession[]
+}
+
+export interface OAuthAccessLogEntry {
+  id: string
+  session_id: string
+  user_id: string
+  ip_address: string | null
+  user_agent: string | null
+  tool_name: string | null
+  accessed_at: string
+}
+
+export interface OAuthAccessLogResponse {
+  log: OAuthAccessLogEntry[]
+  limit: number
+  offset: number
+}
+
+export interface UpdateOAuthAppInput {
+  name?: string
+  description?: string | null
+  logo_url?: string | null
+  callback_url?: string
+  scopes?: string[]
+}
+
 /* ─────────────────────────── Test report ─────────────────────────── */
 
 export interface TestReport {
