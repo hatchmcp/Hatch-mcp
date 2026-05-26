@@ -187,12 +187,13 @@ router.get('/connect/:slug', connectLimit, async (req, res) => {
     [state, company.id, redirectTo]
   )
 
-  // The "Connect" button on the consent page will navigate the user here.
-  // The company's login flow ends by POSTing /oauth/store-token with this
-  // state, then redirecting the user to redirect_to with ?state=...&hatch_token=...
-  const loginUrl =
-    new URL(company.callback_url).origin +
-    `?hatch_state=${state}` // Company can ignore this query if they like
+  // The "Connect" button on the consent page navigates the user to the
+  // company's callback URL (path included!) with ?hatch_state=<csrf>. The
+  // company's auth handler picks up the state, runs its normal login, then
+  // calls /oauth/store-token with that state.
+  const loginUrlObj = new URL(company.callback_url)
+  loginUrlObj.searchParams.set('hatch_state', state)
+  const loginUrl = loginUrlObj.toString()
 
   res.json({
     company: {
