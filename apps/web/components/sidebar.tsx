@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Package,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/sidebar-context'
@@ -35,6 +36,7 @@ const workspaceNav: Item[] = [
   { label: 'Projects', href: '/', icon: LayoutGrid },
   { label: 'Templates', href: '/templates', icon: LayoutTemplate },
   { label: 'Activity', href: '/activity', icon: Activity },
+  { label: 'OAuth apps', href: '/oauth-apps', icon: KeyRound },
 ]
 
 const workspaceBottom: Item[] = [

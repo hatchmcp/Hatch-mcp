@@ -18,6 +18,7 @@ import activityRouter from './routes/activity.js'
 import testsRouter from './routes/tests.js'
 import githubOauthRouter from './routes/github-oauth.js'
 import oauthBrokerRouter from './routes/oauth-broker.js'
+import oauthAppsRouter from './routes/oauth-apps.js'
 
 export function createApp() {
   const app = express()
@@ -53,6 +54,11 @@ export function createApp() {
   // hatch-oauth broker — /oauth/{register,connect,store-token,exchange,revoke,sessions}
   // The npm package + the Connect page both talk to these endpoints.
   app.use('/api/v1/oauth', oauthBrokerRouter)
+
+  // OAuth app management for the dashboard — /oauth/apps and friends.
+  // Mounted AFTER the broker so reserved broker paths win the match;
+  // ours all start with /apps so there's no conflict either way.
+  app.use('/api/v1/oauth', oauthAppsRouter)
 
   // Health check — used by Railway and Better Stack uptime monitors
   app.get('/health', (_req, res) => {

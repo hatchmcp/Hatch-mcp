@@ -313,6 +313,60 @@ export interface UsageResponse {
   hourly: UsageHourlyBucket[]
 }
 
+/* ─────────────────────────── OAuth apps (hatch-oauth) ─────────────────────────── */
+
+export interface OAuthApp {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  logo_url: string | null
+  client_id: string
+  callback_url: string
+  scopes: string[]
+  created_at: string
+  updated_at: string
+  connect_url: string
+  session_count?: number
+  active_session_count?: number
+  last_used_at?: string | null
+}
+
+export interface OAuthAppListResponse {
+  apps: OAuthApp[]
+}
+
+export interface OAuthAppResponse {
+  app: OAuthApp
+}
+
+export interface CreateOAuthAppInput {
+  name: string
+  slug: string
+  callback_url: string
+  description?: string
+  logo_url?: string
+  scopes?: string[]
+}
+
+export interface CreateOAuthAppResponse {
+  id: string
+  name: string
+  slug: string
+  client_id: string
+  /** Plaintext — shown ONCE. Stored hashed thereafter. */
+  client_secret: string
+  callback_url: string
+  scopes: string[]
+  connect_url: string
+}
+
+export interface RotateOAuthSecretResponse {
+  client_secret: string
+  client_secret_hint: string
+  rotated_at: string
+}
+
 /* ─────────────────────────── Test report ─────────────────────────── */
 
 export interface TestReport {
