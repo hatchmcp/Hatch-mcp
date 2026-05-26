@@ -17,6 +17,7 @@ import webhooksRouter from './routes/webhooks.js'
 import activityRouter from './routes/activity.js'
 import testsRouter from './routes/tests.js'
 import githubOauthRouter from './routes/github-oauth.js'
+import oauthBrokerRouter from './routes/oauth-broker.js'
 
 export function createApp() {
   const app = express()
@@ -48,6 +49,10 @@ export function createApp() {
   // The callback path is GET-only and has no auth (the state token binds
   // the dance to a user). All other paths inside this router auth normally.
   app.use('/api/v1', githubOauthRouter)
+
+  // hatch-oauth broker — /oauth/{register,connect,store-token,exchange,revoke,sessions}
+  // The npm package + the Connect page both talk to these endpoints.
+  app.use('/api/v1/oauth', oauthBrokerRouter)
 
   // Health check — used by Railway and Better Stack uptime monitors
   app.get('/health', (_req, res) => {

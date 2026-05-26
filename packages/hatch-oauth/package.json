@@ -1,0 +1,57 @@
+{
+  "name": "hatch-oauth",
+  "version": "0.1.0",
+  "description": "Drop-in OAuth broker for MCP servers. Your users never paste a token, your tokens never leave your control.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "express": "^4.0.0 || ^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "express": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "express": "^5.2.1",
+    "typescript": "^5.4.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "oauth",
+    "claude",
+    "auth",
+    "hatch",
+    "hatchmcp"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hatchmcp/Hatch-mcp.git",
+    "directory": "packages/hatch-oauth"
+  },
+  "homepage": "https://github.com/hatchmcp/Hatch-mcp#readme",
+  "bugs": "https://github.com/hatchmcp/Hatch-mcp/issues"
+}

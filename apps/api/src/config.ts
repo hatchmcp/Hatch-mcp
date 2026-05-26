@@ -48,6 +48,18 @@ const ConfigSchema = z.object({
 
   // CORS origin — set to your frontend URL in production
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+
+  // Hatch OAuth broker (the hatch-oauth npm package + /oauth/* endpoints).
+  // Signs hatch_tokens (JWT HS256). Production should be 64+ random chars and
+  // rotated separately from ENCRYPTION_KEY so a leak of one doesn't burn
+  // both. The default below is only safe for local dev.
+  HATCH_OAUTH_SIGNING_SECRET: z
+    .string()
+    .min(32, 'HATCH_OAUTH_SIGNING_SECRET must be at least 32 characters')
+    .default('dev-only-hatch-oauth-signing-secret-change-me-pls'),
+
+  // hatch_token TTL in days. Token is rotated lazily — see /oauth/exchange.
+  HATCH_OAUTH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(90),
 })
 
 function parseConfig() {
