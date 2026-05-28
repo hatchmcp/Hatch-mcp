@@ -11,14 +11,34 @@ import {
 
 const router = Router()
 
-const CreateProjectSchema = z.object({
-  name: z.string().min(1).max(100),
-  source_type: z.enum(['github', 'openapi', 'postman', 'docs', 'paste']),
-  source_url: z.string().url().optional(),
-  source_ref: z.string().optional(),
-  base_api_url: z.string().url().optional(),
-  description: z.string().max(500).optional(),
-})
+const CreateProjectSchema = z
+  .object({
+    name: z.string().min(1).max(100),
+    source_type: z.enum(['github', 'openapi', 'postman', 'docs', 'paste']),
+    source_url: z.string().optional(),
+    source_ref: z.string().optional(),
+    base_api_url: z.string().url().optional(),
+    description: z.string().max(500).optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (body.source_type === 'paste') {
+      if (!body.source_url || body.source_url.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['source_url'],
+          message: 'source_url is required for paste source type',
+        })
+      }
+      return
+    }
+    if (!body.source_url || !/^https?:\/\//i.test(body.source_url)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['source_url'],
+        message: 'source_url must be a valid http(s) URL for this source type',
+      })
+    }
+  })
 
 router.get('/', auth, async (req, res) => {
   const projects = await listProjects(req.companyId)

@@ -10,6 +10,7 @@ import {
   Braces,
   Box,
   FileText,
+  Upload,
   Check,
   Loader2,
 } from 'lucide-react'
@@ -55,6 +56,12 @@ const sourceOptions: SourceOption[] = [
     hint: 'Any URL with API reference',
     icon: FileText,
   },
+  {
+    id: 'paste',
+    label: 'Upload file',
+    hint: 'Drag & drop local file',
+    icon: Upload,
+  },
 ]
 
 const stepLabels = ['Source', 'Config', 'Review'] as const
@@ -79,6 +86,7 @@ const initialState: WizardState = {
 }
 
 const VALID_SOURCES: SourceType[] = ['github', 'openapi', 'postman', 'docs', 'paste']
+const MAX_PASTE_CHARS = 600_000
 
 export default function NewProjectPage() {
   const router = useRouter()
@@ -113,8 +121,13 @@ export default function NewProjectPage() {
   const slugPreview = useMemo(() => previewSlug(state.name) || 'your-project', [state.name])
 
   // Per-step validity
-  const sourceValid =
-    !!state.sourceType && !!state.sourceUrl.trim() && /^https?:\/\//i.test(state.sourceUrl.trim())
+  const sourceValid = (() => {
+    if (!state.sourceType) return false
+    const value = state.sourceUrl.trim()
+    if (!value) return false
+    if (state.sourceType === 'paste') return true
+    return /^https?:\/\//i.test(value)
+  })()
   const configValid = state.name.trim().length > 0
   const canSubmit = sourceValid && configValid
 
@@ -269,6 +282,43 @@ function SourceStep({
   state: WizardState
   update: <K extends keyof WizardState>(key: K, value: WizardState[K]) => void
 }) {
+  const [uploadName, setUploadName] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
+  async function handleFile(file: File) {
+    setUploadError(null)
+    const name = file.name.toLowerCase()
+    if (name.endsWith('.zip')) {
+      setUploadError('Zip extraction is not supported yet. Upload a text/json/yaml file for now.')
+      return
+    }
+    const text = await file.text()
+    if (!text.trim()) {
+      setUploadError('This file is empty.')
+      return
+    }
+    if (text.length > MAX_PASTE_CHARS) {
+      setUploadError('File is too large. Keep it under ~600k characters.')
+      return
+    }
+    setUploadName(file.name)
+    update('sourceUrl', text)
+  }
+
+  async function onInputFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    await handleFile(file)
+    e.target.value = ''
+  }
+
+  async function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+    await handleFile(file)
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -312,7 +362,7 @@ function SourceStep({
         })}
       </div>
 
-      {state.sourceType && (
+      {state.sourceType && state.sourceType !== 'paste' && (
         <div className="space-y-3 pt-2 border-t border-border">
           <Field
             label={urlLabel(state.sourceType)}
@@ -337,6 +387,71 @@ function SourceStep({
               />
             </Field>
           )}
+        </div>
+      )}
+
+      {state.sourceType === 'paste' && (
+        <div className="space-y-3 pt-2 border-t border-border">
+          <Field
+            label="Upload local file"
+            hint="Best for text/json/yaml API files. Zip is not supported yet."
+          >
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={onDrop}
+              className="border border-dashed border-border rounded-md p-4 bg-bg"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-text-primary">Drag & drop a file here</p>
+                  <p className="text-xs text-text-tertiary">or choose one manually</p>
+                </div>
+                <label className="inline-flex items-center px-3 h-8 rounded-sm border border-border text-xs cursor-pointer hover:border-border-strong">
+                  Choose file
+                  <input
+                    type="file"
+                    className="sr-only"
+                    accept=".txt,.md,.json,.yaml,.yml,.ts,.js,.py,.go,.java,.rb,.php,.cs,.rs,.swift,.kt,.zip"
+                    onChange={onInputFile}
+                  />
+                </label>
+              </div>
+
+              {uploadName && (
+                <p className="text-xs text-text-secondary mt-3">
+                  Loaded: <span className="font-mono">{uploadName}</span>
+                </p>
+              )}
+              {uploadError && (
+                <p className="text-xs text-error mt-3">{uploadError}</p>
+              )}
+            </div>
+          </Field>
+
+          <Field
+            label="Or paste content"
+            hint="Paste OpenAPI/docs/source snippets directly if you prefer."
+          >
+            <textarea
+              placeholder="Paste API docs, OpenAPI text, or route source..."
+              value={state.sourceUrl}
+              onChange={(e) => {
+                setUploadName(null)
+                setUploadError(null)
+                update('sourceUrl', e.target.value)
+              }}
+              rows={8}
+              className={cn(
+                'flex w-full rounded-sm border border-border bg-bg px-3 py-2 text-sm text-text-primary',
+                'placeholder:text-text-tertiary resize-y',
+                'focus-visible:outline-none focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent/10',
+                'transition-colors'
+              )}
+            />
+            <p className="text-[11px] text-text-tertiary mt-1.5 font-mono">
+              {state.sourceUrl.length.toLocaleString()} / {MAX_PASTE_CHARS.toLocaleString()} chars
+            </p>
+          </Field>
         </div>
       )}
     </div>
@@ -494,7 +609,15 @@ function ReviewStep({
           dim
         />
         <ReviewRow label="Source" value={sourceLabel} />
-        <ReviewRow label="URL" value={state.sourceUrl} mono />
+        <ReviewRow
+          label={state.sourceType === 'paste' ? 'Input' : 'URL'}
+          value={
+            state.sourceType === 'paste'
+              ? `${state.sourceUrl.length.toLocaleString()} chars uploaded/pasted`
+              : state.sourceUrl
+          }
+          mono={state.sourceType !== 'paste'}
+        />
         {state.sourceRef && <ReviewRow label="Branch" value={state.sourceRef} mono />}
         {state.baseApiUrl && (
           <ReviewRow label="Base API URL" value={state.baseApiUrl} mono />
