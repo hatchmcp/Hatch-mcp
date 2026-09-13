@@ -131,6 +131,8 @@ Remaining gaps (workspace admin still placeholder in the UI):
 
 - **Workspace endpoints** for Members / API keys / webhooks (settings placeholders)
 
+edited . 
+
 ## License
 
 Proprietary — all rights reserved.
